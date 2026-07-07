@@ -1,24 +1,33 @@
 {
   "expo": {
-    "name": "frontend",
+    "name": "IDEACON",
     "slug": "frontend",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
+    "scheme": "ideacon",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.emergent.futurelaunchpad.wb2mxs"
+      "bundleIdentifier": "com.emergent.futurelaunchpad.wb2mxs",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Upload your ID card & profile photo",
+        "NSCameraUsageDescription": "Capture your ID card & profile photo"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000000"
+        "backgroundColor": "#050505"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.emergent.futurelaunchpad.wb2mxs"
+      "package": "com.emergent.futurelaunchpad.wb2mxs",
+      "permissions": [
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -33,7 +42,13 @@
           "image": "./assets/images/splash-image.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#000000"
+          "backgroundColor": "#050505"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Upload your ID card & profile photo"
         }
       ]
     ],

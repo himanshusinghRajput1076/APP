@@ -1,0 +1,49 @@
+{
+  "summary": "IDEACON MVP tested end-to-end. Backend: 25/25 pytest cases pass (100%) — auth (signup, login, /me, admin login, duplicate email, invalid creds), sectors (40), KYC submit/status, payment plans (role-scoped), mock create-order + verify with subscription activation, portfolio update + public GET (no email/mobile leak), discover with trial limit (5) & sub limit (50), pitch create (role-gated) / list / like, chat HTTP send/list/history, WebSocket ping+pong and real-time message delivery with bad-token rejection, id-card, support ticket create+list (user vs admin scope), admin analytics/users/kyc approve/toggle-active, non-admin 403. Frontend: splash → welcome routes correctly; admin login lands on /admin dashboard with all KPIs, user list, KYC statuses; student login (founder1@test.com) lands on /home with role-based greeting, subscription badge, credits, quick actions. All tab screens render: Home, Discover (with sector chips + investor cards, contact info hidden), Pitch (feed with FAB), Chat (conversations list), Profile (portfolio + KYC status + edit). /id-card renders QR + member id + role + KYC status. /subscription lists Basic + Pro plans with checkout CTA. testIDs are present on login form. No red screens, no page errors. Mocked: Razorpay payment gateway (PAYMENT_MODE=mock) — /api/payment/verify returns success without signature; noted in report as MOCKED.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "(tabs)/*", "issues": ["Bottom tab bar shows active-dot below icons but text labels are clipped at viewport bottom on 390x844 (icons only visible). Consider slightly larger tabBar height so labels are visible."]}
+    ],
+    "react_native_issues": [
+      {"component": "TouchableOpacity/Pressable (various)", "issue": "Console warning: 'props.pointerEvents is deprecated. Use style.pointerEvents' emitted by react-native-web. Non-fatal but a code smell — some component (likely inside ui.tsx or a legacy prop) still passes pointerEvents as a top-level prop."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_ideacon_backend.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Optional: Split /app/backend/server.py (881 lines, exceeds 700-line guideline) into modules: auth.py, kyc.py, payment.py, chat.py, admin.py, models.py — currently everything is in a single file.",
+    "Update code to pass pointerEvents via style prop (style={{ pointerEvents: 'none' }}) instead of prop pointerEvents='none' to remove React Native web deprecation warning.",
+    "SECTORS list docstring says '42 sectors' but list has 40 entries — either update comment or add the missing 2 sectors to align copy with data.",
+    "Consider giving the bottom tab bar a bit more height so the tab labels are not clipped on smaller viewports."
+  ],
+  "critical_code_review_comments": [
+    "server.py is 881 lines — should be modularized per DRY / file-size guideline (>700 lines).",
+    "Payment integration is in MOCK mode (PAYMENT_MODE=mock). Real Razorpay live path exists but is untested (needs live keys).",
+    "public_user() correctly hides email/mobile/hashed_password — verified in /portfolio/{id} and /chat/list.",
+    "WebSocket uses JWT via query param — validated (bad token closes with 1008).",
+    "get_discovery_limit correctly falls back to 5 for trial and 0 when neither trial nor sub — matches spec.",
+    "MongoDB _id is properly excluded across responses via projection {'_id': 0} or msg.pop('_id', None)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_ideacon_backend.py (new)",
+    "/app/test_reports/pytest/pytest_results.xml (generated)",
+    "/app/test_reports/iteration_1.json (new)"
+  ],
+  "success_rate": {
+    "backend": "100% (25/25)",
+    "frontend": "100% (all core screens & flows verified: splash, welcome, login, admin dashboard, home, discover, pitch, chat, profile, id-card, subscription)"
+  },
+  "seed_data_creation": "Test users created via signup with TEST_stu_<runid>, TEST_inv_<runid>, TEST_grw_<runid> prefixes. Existing users founder1@test.com / investor1@test.com / startup1@test.com and admin@ideacon.in are functional. Test student got KYC approved and investor got investor_basic subscription during tests.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend fully green (25/25). Frontend routes verified via direct URL navigation (/home, /discover, /pitch, /chat, /profile, /id-card, /subscription) since tab-bar icons don't have testIDs. If next iteration adds testID to (tabs)/_layout.tsx Tabs.Screen entries (e.g. testID='tab-discover'), Playwright tab-click tests can be added. Mock payment verify is idempotent-protected (409 if reused). Live Razorpay path untested — requires real keys and PAYMENT_MODE=live. Bcrypt version warning is non-fatal per problem statement.",
+  "rca_of_issue": "No blocking issues found. Minor test-side fix applied: email comparison was case-sensitive but backend lowercases emails on signup — updated assertion to compare lowercased."
+}
