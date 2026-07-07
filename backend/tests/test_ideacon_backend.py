@@ -199,8 +199,8 @@ def test_pitch_list_and_like(student, pitch_id):
     assert r.status_code == 200
     ids = [p["id"] for p in r.json()["pitches"]]
     assert pitch_id in ids
-    l = requests.post(f"{API}/pitch/{pitch_id}/like", headers=_auth(tok), timeout=15)
-    assert l.status_code == 200
+    l_resp = requests.post(f"{API}/pitch/{pitch_id}/like", headers=_auth(tok), timeout=15)
+    assert l_resp.status_code == 200
 
 
 def test_pitch_investor_forbidden(investor):
@@ -214,14 +214,13 @@ def test_pitch_investor_forbidden(investor):
 def test_chat_http_send_list_history(student, investor):
     stu_tok = student["access_token"]
     inv_id = investor["user"]["id"]
-    stu_id = student["user"]["id"]
     r = requests.post(f"{API}/chat/send", headers=_auth(stu_tok),
                      json={"receiver_id": inv_id, "text": "TEST hello"}, timeout=15)
     assert r.status_code == 200, r.text
-    l = requests.get(f"{API}/chat/list", headers=_auth(stu_tok), timeout=15)
-    assert l.status_code == 200 and len(l.json()["chats"]) >= 1
+    l_resp = requests.get(f"{API}/chat/list", headers=_auth(stu_tok), timeout=15)
+    assert l_resp.status_code == 200 and len(l_resp.json()["chats"]) >= 1
     # ensure "other" is public_user only (no email)
-    assert "email" not in l.json()["chats"][0]["other"]
+    assert "email" not in l_resp.json()["chats"][0]["other"]
     h = requests.get(f"{API}/chat/{inv_id}", headers=_auth(stu_tok), timeout=15)
     assert h.status_code == 200
     assert any(m["text"] == "TEST hello" for m in h.json()["messages"])
