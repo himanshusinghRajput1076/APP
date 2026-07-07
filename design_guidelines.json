@@ -1,0 +1,103 @@
+{
+  "theme_strategy": {
+    "mode": "Both light and dark toggle",
+    "primary_archetype": "Archetype 4 (Swiss & High-Contrast)",
+    "accent_archetype": "Futuristic / Neon (inspired by Archetype 7)",
+    "domain": "Startup Ecosystem / Fintech",
+    "vibe": "Professional, authoritative, high-energy, futuristic"
+  },
+  "typography": {
+    "font_families": {
+      "heading": "Clash Display (Bold, geometrical, authoritative)",
+      "body": "Satoshi (Clean, legible sans)",
+      "mono": "Space Mono (For stats, credits, and data)"
+    },
+    "hierarchy": {
+      "h1": "text-4xl tracking-tighter leading-none font-black",
+      "h2": "text-3xl tracking-tight leading-tight font-bold",
+      "h3": "text-xl tracking-tight font-semibold",
+      "body": "text-base leading-relaxed font-normal",
+      "label_overline": "text-xs uppercase tracking-[0.2em] font-medium"
+    },
+    "rules": "Never use Inter/Roboto for headings. Avoid centering text unless explicitly required for structural balance. Left-align for readability."
+  },
+  "color_palette": {
+    "dark": {
+      "background": "#050505",
+      "surface": "#121212",
+      "surface_glass": "rgba(255, 255, 255, 0.05)",
+      "primary_accent": "#FF6B00",
+      "secondary_accent": "#00FF66",
+      "text_primary": "#FFFFFF",
+      "text_secondary": "rgba(255, 255, 255, 0.6)",
+      "border": "rgba(255, 255, 255, 0.1)",
+      "error": "#FF3333"
+    },
+    "light": {
+      "background": "#F9F9F9",
+      "surface": "#FFFFFF",
+      "surface_glass": "rgba(0, 0, 0, 0.03)",
+      "primary_accent": "#E05A00",
+      "secondary_accent": "#0A8F3C",
+      "text_primary": "#0A0A0A",
+      "text_secondary": "rgba(0, 0, 0, 0.6)",
+      "border": "rgba(0, 0, 0, 0.1)",
+      "error": "#CC0000"
+    },
+    "usage_rules": "No purple/violet gradients. The Saffron (Orange) and Green neons act as subtle Indian pride accents in a futuristic context. Use primary accent for CTAs. Use secondary for growth/credits indicators."
+  },
+  "layout_and_spacing": {
+    "grid_system": "Asymmetrical Bento Grid. Avoid equal squares. Mix 2x2 spans with 1x1 spans. In React Native, achieve this with flex-wrap and percentage widths.",
+    "spacing": "Generous. Use p-6 or p-8 for main screen containers. Internal padding for cards must be p-4 or p-6 to avoid collision.",
+    "alignment": "Optical alignment over geometrical. Left-aligned forms and dense data."
+  },
+  "components": {
+    "buttons": "Sharp corners (rounded-none or max rounded-sm). High contrast text. Solid primary background for primary actions, 1px border for secondary.",
+    "cards": "Razor-thin borders (1px) with solid or subtle glass background. No heavy drop shadows in dark mode. Use Expo BlurView for true glass effect.",
+    "digital_id": "Futuristic ID Card: Glassmorphic background, glowing 1px border for Pro members, asymmetric layout for photo and QR code.",
+    "inputs": "Flat surfaces with 1px bottom border or fully enclosed with 1px border. No default native styling.",
+    "splash_screen": "Deep void background, IDEACON logo scaling up, glowing with Saffron/Green accents.",
+    "navigation": "Bottom tabs with translucent blur overlay. Active tab indicated by a crisp neon dot or line, not a generic pill."
+  },
+  "motion_interactions": {
+    "general": "Smooth, purposeful transitions. Reanimated or standard Animated for micro-interactions (e.g., scale down to 0.95 on press).",
+    "lists": "Staggered fade-in for Idea Pitch and Investor Discovery feeds."
+  },
+  "accessibility_and_testing": {
+    "contrast": "Ensure text over glass or images meets WCAG AA (4.5:1). Use text-shadow if needed over backgrounds.",
+    "testing_attributes": "CRITICAL: All interactive and key informational elements MUST include a `data-testid` (and `testID` for React Native support) attribute (e.g., `data-testid=\"login-submit-btn\"`)."
+  },
+  "media_assets": {
+    "image_urls": [
+      {
+        "url": "https://images.unsplash.com/photo-1526289034009-0240ddb68ce3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDQ2NDF8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBmdXR1cmlzdGljJTIwYWJzdHJhY3QlMjBkYXJrJTIwYXJjaGl0ZWN0dXJlfGVufDB8fHx8MTc4MzQzMDQyM3ww&ixlib=rb-4.1.0&q=85",
+        "category": "background",
+        "description": "Futuristic abstract dark texture for splash screen or Digital ID background."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1536766768598-e09213fdcf22?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwxfHxpbmRpYW4lMjBwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdCUyMHByb2ZpbGV8ZW58MHx8fHwxNzgzNDMwNDIzfDA&ixlib=rb-4.1.0&q=85",
+        "category": "avatar_student",
+        "description": "Professional female avatar for Student/Future Founder profile."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1523307730650-594bc63f9d67?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzl8MHwxfHNlYXJjaHwyfHxpbmRpYW4lMjBwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdCUyMHByb2ZpbGV8ZW58MHx8fHwxNzgzNDMwNDIzfDA&ixlib=rb-4.1.0&q=85",
+        "category": "avatar_investor",
+        "description": "Professional male avatar for Investor/Future Partner profile."
+      },
+      {
+        "url": "https://images.pexels.com/photos/6804068/pexels-photo-6804068.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "startup_cover",
+        "description": "Modern tech startup office for growing startup portfolio cover image."
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Develop the app using standard React Native (.js). Use NativeWind or StyleSheet for styling according to these guidelines.",
+    "Implement both Light and Dark modes. Default to Dark Mode.",
+    "Ensure the KYC forms use crisp, bordered inputs and clear typography.",
+    "For the subscription Razorpay checkout, maintain the app's dark/light aesthetic in the surrounding UI.",
+    "Apply `data-testid` (and `testID`) attributes aggressively on all touchable elements, forms, and navigation buttons.",
+    "Keep layouts asymmetrical. Avoid centering everything. Use 1px borders for structure.",
+    "The admin analytics dashboard should use clear, dense grids (The 'Control Room' protocol)."
+  ]
+}
