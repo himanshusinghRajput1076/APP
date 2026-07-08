@@ -10,6 +10,7 @@ import { useTheme } from "@/src/theme/ThemeProvider";
 import { useAuth } from "@/src/context/AuthContext";
 import { spacing, typography, radius } from "@/src/theme/tokens";
 import { Btn, Card, Badge } from "@/src/components/ui";
+import { Confetti } from "@/src/components/Confetti";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/api/client";
 
@@ -243,8 +244,5 @@ function PayMethodOption({ id, label, desc, icon, active, onPress }: any) {
       </View>
       {active ? <Ionicons name="checkmark-circle" size={20} color={theme.primary} /> : <View style={{ width: 18, height: 18, borderWidth: 1, borderColor: theme.border, borderRadius: 9 }} />}
     </TouchableOpacity>
-  );
-}
-acity>
   );
 }
