@@ -197,6 +197,7 @@ export default function Subscription() {
         {/* Success modal */}
         <Modal visible={success} transparent animationType="fade" statusBarTranslucent>
           <View style={{ flex: 1, backgroundColor: theme.overlay, justifyContent: "center", padding: spacing.lg }}>
+            <Confetti show={success} />
             <View style={{ backgroundColor: theme.surface, borderRadius: 14, borderWidth: 1, borderColor: theme.secondary, padding: spacing.lg }}>
               <View style={{ alignItems: "center" }}>
                 <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: theme.secondaryDim, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.secondary }}>
@@ -242,5 +243,8 @@ function PayMethodOption({ id, label, desc, icon, active, onPress }: any) {
       </View>
       {active ? <Ionicons name="checkmark-circle" size={20} color={theme.primary} /> : <View style={{ width: 18, height: 18, borderWidth: 1, borderColor: theme.border, borderRadius: 9 }} />}
     </TouchableOpacity>
+  );
+}
+acity>
   );
 }

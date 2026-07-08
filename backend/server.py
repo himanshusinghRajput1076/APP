@@ -49,11 +49,26 @@ ALL_ROLES = {ROLE_STUDENT, ROLE_INVESTOR, ROLE_GROWING, ROLE_ADMIN}
 
 # Subscription plans (amount in paise for razorpay compatibility)
 PLANS = {
-    "student_basic": {"role": ROLE_STUDENT, "tier": "basic", "amount": 20500, "credits": 50, "limit": 10, "days": 30},
-    "student_pro": {"role": ROLE_STUDENT, "tier": "pro", "amount": 54900, "credits": 150, "limit": 30, "days": 30},
-    "investor_basic": {"role": ROLE_INVESTOR, "tier": "basic", "amount": 54900, "credits": 150, "limit": 50, "days": 30},
-    "startup_basic": {"role": ROLE_GROWING, "tier": "basic", "amount": 54900, "credits": 150, "limit": 40, "days": 30},
-    "startup_pro": {"role": ROLE_GROWING, "tier": "pro", "amount": 74900, "credits": 250, "limit": 60, "days": 30},
+    "student_basic": {"role": ROLE_STUDENT, "tier": "basic", "amount": 20500, "credits": 50, "limit": 10, "days": 30, "ignite_tokens": 5},
+    "student_pro": {"role": ROLE_STUDENT, "tier": "pro", "amount": 54900, "credits": 150, "limit": 30, "days": 30, "ignite_tokens": 20},
+    "investor_basic": {"role": ROLE_INVESTOR, "tier": "basic", "amount": 54900, "credits": 150, "limit": 50, "days": 30, "ignite_tokens": 50},
+    "startup_basic": {"role": ROLE_GROWING, "tier": "basic", "amount": 54900, "credits": 150, "limit": 40, "days": 30, "ignite_tokens": 15},
+    "startup_pro": {"role": ROLE_GROWING, "tier": "pro", "amount": 74900, "credits": 250, "limit": 60, "days": 30, "ignite_tokens": 30},
+}
+
+REFERRAL_BONUS_CREDITS = 100  # both referrer & referee get this on successful subscription
+
+# Achievement definitions
+ACHIEVEMENTS = {
+    "welcome_aboard": {"name": "Welcome Aboard", "desc": "Joined IDEACON", "icon": "rocket", "color": "primary"},
+    "verified_founder": {"name": "Verified", "desc": "Completed KYC verification", "icon": "shield-checkmark", "color": "secondary"},
+    "first_pitch": {"name": "First Pitch", "desc": "Posted your first idea", "icon": "bulb", "color": "primary"},
+    "hot_pitch": {"name": "Hot Pitch", "desc": "Got 10+ ignites on a pitch", "icon": "flame", "color": "primary"},
+    "connector": {"name": "Connector", "desc": "Started 5 conversations", "icon": "chatbubbles", "color": "secondary"},
+    "premium_member": {"name": "Premium", "desc": "Subscribed to a plan", "icon": "star", "color": "primary"},
+    "pro_member": {"name": "Pro Elite", "desc": "Subscribed to Pro tier", "icon": "diamond", "color": "secondary"},
+    "referrer": {"name": "Ambassador", "desc": "Referred 1+ paying user", "icon": "people", "color": "secondary"},
+    "angel_touch": {"name": "Angel Touch", "desc": "Gifted 5+ ignites to founders", "icon": "gift", "color": "primary"},
 }
 
 # 42 sectors
@@ -186,6 +201,7 @@ class SignupRequest(BaseModel):
     password: str = Field(min_length=6)
     name: str = Field(min_length=1)
     role: Literal["student", "investor", "growing_startup"]
+    referral_code: Optional[str] = None
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -315,6 +331,24 @@ async def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
 async def root():
     return {"app": "IDEACON", "version": "1.0.0", "status": "ok"}
 
+def generate_referral_code(user_id: str) -> str:
+    # 8-char code based on user id, alphanumeric uppercase
+    import hashlib
+    h = hashlib.sha1(user_id.encode()).hexdigest().upper()
+    # Skip visually confusing chars
+    return "".join(c for c in h if c not in "0O1IL")[:8]
+
+
+async def award_achievement(user_id: str, achievement_key: str) -> bool:
+    if achievement_key not in ACHIEVEMENTS:
+        return False
+    r = await users_c.update_one(
+        {"id": user_id, "achievements": {"$ne": achievement_key}},
+        {"$addToSet": {"achievements": achievement_key}},
+    )
+    return r.modified_count > 0
+
+
 @api.post("/auth/signup", response_model=TokenResponse)
 async def signup(req: SignupRequest):
     existing = await users_c.find_one({"email": req.email.lower()})
@@ -322,6 +356,17 @@ async def signup(req: SignupRequest):
         raise HTTPException(400, "Email already registered")
     now = now_utc()
     user_id = uid()
+    ref_code = generate_referral_code(user_id)
+
+    # Resolve referrer if code is provided (case-insensitive)
+    referred_by = None
+    if req.referral_code:
+        clean = req.referral_code.strip().upper()
+        if clean:
+            ref_doc = await users_c.find_one({"referral_code": clean}, {"_id": 0, "id": 1})
+            if ref_doc:
+                referred_by = ref_doc["id"]
+
     doc = {
         "id": user_id,
         "email": req.email.lower(),
@@ -332,9 +377,13 @@ async def signup(req: SignupRequest):
         "created_at": iso(now),
         "trial_expires_at": iso(now + timedelta(hours=24)),  # 24 hr free trial
         "credits": 10,  # signup bonus
+        "ignite_tokens": 0,
         "photo": None,
         "active": True,
         "subscription": None,
+        "referral_code": ref_code,
+        "referred_by": referred_by,
+        "achievements": ["welcome_aboard"],
     }
     await users_c.insert_one(doc)
     token = create_token({"sub": user_id, "email": req.email.lower(), "role": req.role})
@@ -471,10 +520,14 @@ async def create_pitch(req: PitchRequest, current: Dict[str, Any] = Depends(get_
         "user_photo": current.get("photo"),
         **req.dict(),
         "likes": 0,
+        "ignites": 0,
+        "ignite_investors": [],
         "created_at": iso(now_utc()),
     }
     await pitches_c.insert_one(doc)
     doc.pop("_id", None)
+    # Award first pitch achievement
+    await award_achievement(current["id"], "first_pitch")
     return doc
 
 @api.get("/pitch")
@@ -482,7 +535,8 @@ async def list_pitches(sector: Optional[str] = None, current: Dict[str, Any] = D
     query = {}
     if sector:
         query["sector"] = sector
-    cursor = pitches_c.find(query, {"_id": 0}).sort("created_at", -1).limit(100)
+    # Sort by ignites first (feed boost), then recency
+    cursor = pitches_c.find(query, {"_id": 0}).sort([("ignites", -1), ("created_at", -1)]).limit(100)
     return {"pitches": await cursor.to_list(length=100)}
 
 @api.post("/pitch/{pitch_id}/like")
@@ -491,6 +545,84 @@ async def like_pitch(pitch_id: str, current: Dict[str, Any] = Depends(get_curren
     if r.matched_count == 0:
         raise HTTPException(404, "Pitch not found")
     return {"status": "ok"}
+
+
+class IgniteRequest(BaseModel):
+    amount: int = Field(ge=1, le=100, default=1)
+
+@api.post("/pitch/{pitch_id}/ignite")
+async def ignite_pitch(pitch_id: str, req: IgniteRequest, current: Dict[str, Any] = Depends(get_current_user)):
+    """Investors gift ignite tokens to a pitch — boosts feed ranking + unlocks priority chat with founder."""
+    if current["role"] != ROLE_INVESTOR:
+        raise HTTPException(403, "Only investors can ignite pitches")
+    pitch = await pitches_c.find_one({"id": pitch_id})
+    if not pitch:
+        raise HTTPException(404, "Pitch not found")
+    balance = current.get("ignite_tokens", 0) or 0
+    if balance < req.amount:
+        raise HTTPException(400, f"Insufficient ignite tokens (you have {balance})")
+
+    now = now_utc()
+    await users_c.update_one({"id": current["id"]}, {"$inc": {"ignite_tokens": -req.amount}})
+    await pitches_c.update_one(
+        {"id": pitch_id},
+        {"$inc": {"ignites": req.amount},
+         "$addToSet": {"ignite_investors": current["id"]}},
+    )
+    await credits_c.insert_one({
+        "id": uid(), "type": "ignite",
+        "from_user_id": current["id"], "to_user_id": pitch["user_id"], "pitch_id": pitch_id,
+        "amount": req.amount, "created_at": iso(now),
+    })
+
+    # Achievements
+    total_ignited_docs = await credits_c.count_documents({"type": "ignite", "from_user_id": current["id"]})
+    if total_ignited_docs >= 5:
+        await award_achievement(current["id"], "angel_touch")
+
+    updated = await pitches_c.find_one({"id": pitch_id}, {"_id": 0})
+    if updated and (updated.get("ignites") or 0) >= 10:
+        await award_achievement(pitch["user_id"], "hot_pitch")
+
+    return {"status": "ok", "ignites": updated.get("ignites", 0), "remaining_tokens": balance - req.amount}
+
+
+# --------------------------------------------------------------------------- #
+# Referral
+# --------------------------------------------------------------------------- #
+@api.get("/referral")
+async def get_referral_stats(current: Dict[str, Any] = Depends(get_current_user)):
+    code = current.get("referral_code")
+    if not code:
+        # backfill for users created before referral feature
+        code = generate_referral_code(current["id"])
+        await users_c.update_one({"id": current["id"]}, {"$set": {"referral_code": code}})
+    referred = await users_c.count_documents({"referred_by": current["id"]})
+    paid_refs = await credits_c.count_documents({"type": "referral", "referrer_id": current["id"]})
+    credits_earned = paid_refs * REFERRAL_BONUS_CREDITS
+    return {
+        "code": code,
+        "total_referred": referred,
+        "paid_referrals": paid_refs,
+        "credits_earned": credits_earned,
+        "bonus_per_referral": REFERRAL_BONUS_CREDITS,
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Achievements
+# --------------------------------------------------------------------------- #
+@api.get("/achievements")
+async def get_achievements(current: Dict[str, Any] = Depends(get_current_user)):
+    unlocked = set(current.get("achievements", []))
+    result = []
+    for key, meta in ACHIEVEMENTS.items():
+        result.append({
+            "key": key,
+            **meta,
+            "unlocked": key in unlocked,
+        })
+    return {"achievements": result, "unlocked_count": len(unlocked), "total": len(ACHIEVEMENTS)}
 
 
 # --------------------------------------------------------------------------- #
@@ -597,7 +729,7 @@ async def verify_payment(req: PaymentVerifyRequest, current: Dict[str, Any] = De
     }
     await users_c.update_one(
         {"id": current["id"]},
-        {"$set": {"subscription": subscription}, "$inc": {"credits": plan["credits"]}},
+        {"$set": {"subscription": subscription}, "$inc": {"credits": plan["credits"], "ignite_tokens": plan["ignite_tokens"]}},
     )
     await payments_c.update_one(
         {"id": req.order_id},
@@ -611,8 +743,39 @@ async def verify_payment(req: PaymentVerifyRequest, current: Dict[str, Any] = De
         "started_at": iso(now),
         "expires_at": iso(expires_at),
     })
+
+    # Achievements
+    await award_achievement(current["id"], "premium_member")
+    if plan["tier"] == "pro":
+        await award_achievement(current["id"], "pro_member")
+
+    # Referral bonus — pay out to both parties on FIRST paid subscription only.
+    referred_by = current.get("referred_by")
+    referral_awarded = False
+    if referred_by:
+        # Check if referrer bonus already awarded for this referee
+        existing_ref = await credits_c.find_one({"type": "referral", "referee_id": current["id"]})
+        if not existing_ref:
+            await users_c.update_one({"id": referred_by}, {"$inc": {"credits": REFERRAL_BONUS_CREDITS}})
+            await users_c.update_one({"id": current["id"]}, {"$inc": {"credits": REFERRAL_BONUS_CREDITS}})
+            await credits_c.insert_one({
+                "id": uid(), "type": "referral",
+                "referrer_id": referred_by, "referee_id": current["id"],
+                "amount": REFERRAL_BONUS_CREDITS,
+                "created_at": iso(now),
+            })
+            await award_achievement(referred_by, "referrer")
+            referral_awarded = True
+
     user = await get_user_by_id(current["id"])
-    return {"status": "success", "subscription": subscription, "user": user, "credits_added": plan["credits"]}
+    return {
+        "status": "success",
+        "subscription": subscription,
+        "user": user,
+        "credits_added": plan["credits"] + (REFERRAL_BONUS_CREDITS if referral_awarded else 0),
+        "ignite_tokens_added": plan["ignite_tokens"],
+        "referral_bonus": referral_awarded,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -686,6 +849,12 @@ async def send_message(req: MessageRequest, current: Dict[str, Any] = Depends(ge
     msg.pop("_id", None)
     # push via websocket if online
     await manager.send(req.receiver_id, {"type": "message", "message": msg})
+
+    # Award "Connector" achievement (5+ distinct conversations initiated)
+    distinct_convos = await messages_c.distinct("chat_id", {"sender_id": current["id"]})
+    if len(distinct_convos) >= 5:
+        await award_achievement(current["id"], "connector")
+
     return msg
 
 @api.get("/chat/list")
@@ -824,6 +993,42 @@ async def admin_analytics():
     revenue_by_plan = await rev_cursor.to_list(length=100)
     total_revenue = sum(r["revenue"] for r in revenue_by_plan) / 100
 
+    # 7-day signups (time-series for chart)
+    now = now_utc()
+    signups_7d = []
+    revenue_7d = []
+    for i in range(6, -1, -1):
+        day_start = (now - timedelta(days=i)).replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+        c_signup = await users_c.count_documents({
+            "created_at": {"$gte": iso(day_start), "$lt": iso(day_end)}
+        })
+        rev_agg = await payments_c.aggregate([
+            {"$match": {"status": "success", "verified_at": {"$gte": iso(day_start), "$lt": iso(day_end)}}},
+            {"$group": {"_id": None, "total": {"$sum": "$amount"}}},
+        ]).to_list(length=1)
+        c_rev = (rev_agg[0]["total"] / 100) if rev_agg else 0
+        label = day_start.strftime("%d %b")
+        signups_7d.append({"day": label, "count": c_signup})
+        revenue_7d.append({"day": label, "revenue": c_rev})
+
+    # Sector distribution (top sectors by user count)
+    sector_pipeline = [
+        {"$match": {"sector": {"$ne": None, "$exists": True}}},
+        {"$group": {"_id": "$sector", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 8},
+    ]
+    sector_dist = await users_c.aggregate(sector_pipeline).to_list(length=8)
+    sector_dist = [{"sector": s["_id"], "count": s["count"]} for s in sector_dist]
+
+    # Top pitches by ignites
+    top_pitches = await pitches_c.find({}, {"_id": 0, "title": 1, "ignites": 1, "user_name": 1, "sector": 1}).sort("ignites", -1).limit(5).to_list(length=5)
+
+    # Referral stats
+    total_referrals = await credits_c.count_documents({"type": "referral"})
+    referral_credits_paid = total_referrals * REFERRAL_BONUS_CREDITS * 2  # both parties get bonus
+
     return {
         "total_users": total_users,
         "users_by_role": by_role,
@@ -834,6 +1039,14 @@ async def admin_analytics():
         "total_tickets": total_tickets,
         "revenue_by_plan": revenue_by_plan,
         "total_revenue_inr": total_revenue,
+        "signups_7d": signups_7d,
+        "revenue_7d": revenue_7d,
+        "sector_distribution": sector_dist,
+        "top_pitches": top_pitches,
+        "referrals": {
+            "total": total_referrals,
+            "credits_paid_out": referral_credits_paid,
+        },
     }
 
 @api.get("/admin/users", dependencies=[Depends(require_roles(ROLE_ADMIN))])
@@ -856,6 +1069,7 @@ async def admin_get_kyc(user_id: str):
 async def admin_approve_kyc(user_id: str):
     await users_c.update_one({"id": user_id}, {"$set": {"kyc_status": "approved"}})
     await kyc_c.update_one({"user_id": user_id}, {"$set": {"status": "approved"}})
+    await award_achievement(user_id, "verified_founder")
     return {"status": "approved"}
 
 @api.post("/admin/kyc/{user_id}/reject", dependencies=[Depends(require_roles(ROLE_ADMIN))])

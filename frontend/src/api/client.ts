@@ -42,6 +42,7 @@ export type User = {
   trial_expires_at?: string;
   subscription?: any;
   credits: number;
+  ignite_tokens?: number;
   photo?: string | null;
   sector?: string;
   bio?: string;
@@ -51,4 +52,7 @@ export type User = {
   linkedin?: string;
   skills?: string[];
   active: boolean;
+  referral_code?: string;
+  referred_by?: string | null;
+  achievements?: string[];
 };

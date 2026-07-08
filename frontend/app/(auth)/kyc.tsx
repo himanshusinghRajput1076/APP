@@ -7,6 +7,7 @@ import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/src/theme/ThemeProvider";
 import { Btn, Input, Card, Badge } from "@/src/components/ui";
+import { Confetti } from "@/src/components/Confetti";
 import { spacing, typography, radius } from "@/src/theme/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "@/src/context/AuthContext";
@@ -48,6 +49,7 @@ export default function KYCScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [useDigilocker, setUseDigilocker] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const isRequired = user?.role === "student";
 
@@ -74,10 +76,10 @@ export default function KYCScreen() {
         address: address || undefined,
       });
       await refresh();
-      router.replace("/(tabs)/home");
+      setShowConfetti(true);
+      setTimeout(() => router.replace("/(tabs)/home"), 1600);
     } catch (e: any) {
       setError(e?.response?.data?.detail || "KYC submission failed");
-    } finally {
       setLoading(false);
     }
   };
@@ -212,6 +214,7 @@ export default function KYCScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <Confetti show={showConfetti} />
     </SafeAreaView>
   );
 }

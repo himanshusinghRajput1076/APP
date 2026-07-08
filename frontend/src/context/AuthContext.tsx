@@ -6,7 +6,7 @@ type AuthCtx = {
   user: User | null;
   token: string | null;
   loading: boolean;
-  signUp: (data: { email: string; password: string; name: string; role: User["role"] }) => Promise<User>;
+  signUp: (data: { email: string; password: string; name: string; role: User["role"]; referral_code?: string }) => Promise<User>;
   signIn: (email: string, password: string) => Promise<User>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;

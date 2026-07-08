@@ -20,6 +20,7 @@ export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,12 +30,13 @@ export default function Signup() {
     if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
     setLoading(true);
     try {
-      const user = await signUp({
+      await signUp({
         email: email.trim().toLowerCase(),
         password,
         name: name.trim(),
         role: (role as any) || "student",
-      });
+        referral_code: referralCode.trim() || undefined,
+      } as any);
       // Redirect to KYC for new users
       router.replace("/(auth)/kyc");
     } catch (e: any) {
@@ -67,6 +69,7 @@ export default function Signup() {
             <Input label="Full Name" value={name} onChangeText={setName} placeholder="Aarav Sharma" testID="signup-name" autoCapitalize="words" />
             <Input label="Email Address" value={email} onChangeText={setEmail} placeholder="you@example.com" testID="signup-email" keyboardType="email-address" autoCapitalize="none" />
             <Input label="Password" value={password} onChangeText={setPassword} placeholder="Min 6 characters" secureTextEntry testID="signup-password" />
+            <Input label="Referral Code (optional)" value={referralCode} onChangeText={(v) => setReferralCode(v.toUpperCase())} placeholder="Get ₹100 credits on subscription" testID="signup-referral" autoCapitalize="characters" maxLength={12} />
           </View>
 
           {error ? <Text style={{ color: theme.error, marginTop: 16 }}>{error}</Text> : null}

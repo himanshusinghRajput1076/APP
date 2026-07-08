@@ -1,16 +1,21 @@
 /**
- * Home dashboard — role-specific overview.
+ * Home dashboard — role-specific overview with time greetings, achievements, testimonials.
  */
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Image, StatusBar } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, Share, Dimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/theme/ThemeProvider";
 import { useAuth } from "@/src/context/AuthContext";
 import { spacing, typography, radius } from "@/src/theme/tokens";
-import { Btn, Card, Badge, Chip } from "@/src/components/ui";
+import { Btn, Card, Badge } from "@/src/components/ui";
+import { Skeleton, SkeletonList } from "@/src/components/Skeleton";
+import { AchievementBadge, AchievementItem } from "@/src/components/AchievementBadge";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/api/client";
+import { timeGreeting } from "@/src/utils/greeting";
+
+const { width } = Dimensions.get("window");
 
 function timeLeft(iso?: string) {
   if (!iso) return "";
@@ -21,23 +26,38 @@ function timeLeft(iso?: string) {
   return `${Math.floor(h / 24)}d left`;
 }
 
+const TESTIMONIALS = [
+  { name: "Ananya, Founder @ HealSpark", quote: "Closed our first ₹50L angel round in 3 weeks through IDEACON.", role: "student" },
+  { name: "Rohan, Angel Partner", quote: "The pitch feed algorithm surfaces gems I'd never find on LinkedIn.", role: "investor" },
+  { name: "Meera, CEO @ AgroCloud", quote: "The end-to-end fundraising service saved us 4 months of legwork.", role: "growing_startup" },
+];
+
 export default function Home() {
   const { theme, toggle, mode } = useTheme();
   const { user, refresh, signOut } = useAuth();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>({});
+  const [achievements, setAchievements] = useState<AchievementItem[]>([]);
+  const [referral, setReferral] = useState<any>(null);
 
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
       await refresh();
-      // Fetch role-based quick data
-      const [pitches] = await Promise.all([
+      const [pitches, ach, ref] = await Promise.all([
         api.get("/pitch").catch(() => ({ data: { pitches: [] } })),
+        api.get("/achievements").catch(() => ({ data: { achievements: [] } })),
+        api.get("/referral").catch(() => ({ data: null })),
       ]);
       setStats({ pitches: pitches.data.pitches?.length || 0 });
-    } finally { setRefreshing(false); }
+      setAchievements(ach.data.achievements || []);
+      setReferral(ref.data);
+    } finally {
+      setRefreshing(false);
+      setLoading(false);
+    }
   }, [refresh]);
 
   useEffect(() => { load(); }, [load]);
@@ -48,15 +68,29 @@ export default function Home() {
   const trial = user.trial_expires_at ? timeLeft(user.trial_expires_at) : "";
   const sub = user.subscription;
   const isPro = sub?.tier === "pro";
+  const { greet, emoji, first } = timeGreeting(user.name);
+
+  const unlockedCount = achievements.filter((a) => a.unlocked).length;
+
+  const shareReferral = async () => {
+    if (!referral?.code) return;
+    try {
+      await Share.share({
+        message: `Join me on IDEACON — India's futuristic startup ecosystem. Use my referral code ${referral.code} to get ₹100 credits on your first subscription. Download the app now!`,
+      });
+    } catch { /* ignore */ }
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
         {/* Sticky header */}
         <View style={{ paddingHorizontal: spacing.lg, paddingVertical: spacing.md, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={{ color: theme.primary, fontSize: 10, letterSpacing: 3, fontWeight: "700" }}>{roleLabel}</Text>
-            <Text style={{ color: theme.text, fontSize: 22, fontWeight: "800", marginTop: 2 }}>Hi, {user.name?.split(" ")[0] || "founder"} 👋</Text>
+            <Text style={{ color: theme.text, fontSize: 22, fontWeight: "800", marginTop: 2 }}>
+              {greet}, {first || "founder"} {emoji}
+            </Text>
           </View>
           <View style={{ flexDirection: "row", gap: 8 }}>
             <TouchableOpacity testID="theme-toggle" onPress={toggle} style={{ width: 40, height: 40, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center" }}>
@@ -73,45 +107,84 @@ export default function Home() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={load} tintColor={theme.primary} />}
         >
           {/* Trial/Sub banner */}
-          <Card style={{
-            borderColor: isPro ? theme.secondary : theme.primary,
-            backgroundColor: theme.surface,
-            borderWidth: 1,
-          }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <View style={{ flex: 1 }}>
-                {sub ? (
-                  <>
-                    <Badge text={isPro ? "PRO MEMBER" : "MEMBER"} color={isPro ? theme.secondary : theme.primary} />
-                    <Text style={{ color: theme.text, fontSize: 20, fontWeight: "800", marginTop: 8 }}>{sub.plan_id.replace("_", " · ").toUpperCase()}</Text>
-                    <Text style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>
-                      {sub.limit} discovery slots · Expires {timeLeft(sub.expires_at)}
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <Badge text={trial === "expired" ? "TRIAL EXPIRED" : "FREE TRIAL"} color={trial === "expired" ? theme.error : theme.primary} />
-                    <Text style={{ color: theme.text, fontSize: 20, fontWeight: "800", marginTop: 8 }}>{trial === "expired" ? "Upgrade to continue" : "24h free access"}</Text>
-                    <Text style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>
-                      {trial === "expired" ? "Subscribe to unlock features" : `${trial} · Explore 5 profiles`}
-                    </Text>
-                  </>
-                )}
+          {loading && !user ? (
+            <Skeleton height={140} />
+          ) : (
+            <Card style={{
+              borderColor: isPro ? theme.secondary : theme.primary,
+              backgroundColor: theme.surface,
+              borderWidth: 1,
+            }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <View style={{ flex: 1 }}>
+                  {sub ? (
+                    <>
+                      <Badge text={isPro ? "PRO MEMBER" : "MEMBER"} color={isPro ? theme.secondary : theme.primary} />
+                      <Text style={{ color: theme.text, fontSize: 20, fontWeight: "800", marginTop: 8 }}>{sub.plan_id.replace("_", " · ").toUpperCase()}</Text>
+                      <Text style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>
+                        {sub.limit} discovery slots · Expires {timeLeft(sub.expires_at)}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Badge text={trial === "expired" ? "TRIAL EXPIRED" : "FREE TRIAL"} color={trial === "expired" ? theme.error : theme.primary} />
+                      <Text style={{ color: theme.text, fontSize: 20, fontWeight: "800", marginTop: 8 }}>{trial === "expired" ? "Upgrade to continue" : "24h free access"}</Text>
+                      <Text style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>
+                        {trial === "expired" ? "Subscribe to unlock features" : `${trial} · Explore 5 profiles`}
+                      </Text>
+                    </>
+                  )}
+                </View>
+                <View style={{ alignItems: "flex-end" }}>
+                  <Text style={{ color: theme.textMuted, fontSize: 10, letterSpacing: 2 }}>CREDITS</Text>
+                  <Text style={{ color: theme.secondary, fontSize: 26, fontWeight: "900", marginTop: 2 }}>{user.credits}</Text>
+                  {user.role === "investor" && (user.ignite_tokens || 0) > 0 ? (
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 3, marginTop: 4 }}>
+                      <Ionicons name="flame" size={11} color={theme.primary} />
+                      <Text style={{ color: theme.primary, fontSize: 12, fontWeight: "800" }}>{user.ignite_tokens}</Text>
+                    </View>
+                  ) : null}
+                </View>
               </View>
-              <View style={{ alignItems: "flex-end" }}>
-                <Text style={{ color: theme.textMuted, fontSize: 10, letterSpacing: 2 }}>CREDITS</Text>
-                <Text style={{ color: theme.secondary, fontSize: 26, fontWeight: "900", marginTop: 2 }}>{user.credits}</Text>
+              <View style={{ marginTop: 16 }}>
+                <Btn testID="upgrade-btn" title={sub ? "Manage Plan" : "View Plans"} onPress={() => router.push("/subscription")} small />
               </View>
-            </View>
-            <View style={{ marginTop: 16 }}>
-              <Btn testID="upgrade-btn" title={sub ? "Manage Plan" : "View Plans"} onPress={() => router.push("/subscription")} small />
-            </View>
-          </Card>
+            </Card>
+          )}
+
+          {/* Referral card */}
+          {referral?.code ? (
+            <Card style={{ marginTop: spacing.md, borderColor: theme.secondary, backgroundColor: theme.secondaryDim }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Ionicons name="gift" size={14} color={theme.secondary} />
+                    <Text style={{ ...typography.caption, color: theme.secondary }}>REFER & EARN</Text>
+                  </View>
+                  <Text style={{ color: theme.text, fontSize: 16, fontWeight: "800", marginTop: 6 }}>
+                    ₹100 credits for you + friend
+                  </Text>
+                  <Text style={{ color: theme.textMuted, fontSize: 12, marginTop: 2 }}>
+                    {referral.paid_referrals || 0} paid · ₹{referral.credits_earned || 0} earned
+                  </Text>
+                </View>
+                <View style={{ alignItems: "flex-end" }}>
+                  <View style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: theme.bg, borderWidth: 1, borderColor: theme.secondary }}>
+                    <Text style={{ color: theme.secondary, fontWeight: "900", letterSpacing: 2, fontSize: 14 }}>{referral.code}</Text>
+                  </View>
+                  <TouchableOpacity testID="share-referral" onPress={shareReferral} style={{ marginTop: 8, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                    <Ionicons name="share-social" size={12} color={theme.secondary} />
+                    <Text style={{ color: theme.secondary, fontSize: 11, fontWeight: "700" }}>SHARE</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Card>
+          ) : null}
 
           {/* Quick actions */}
           <View style={{ marginTop: spacing.lg }}>
             <Text style={{ ...typography.caption, color: theme.textMuted, marginBottom: 12 }}>QUICK ACTIONS</Text>
-            <View style={{ flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
+            <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
               <QuickAction testID="qa-idcard" icon="card" label="Digital ID" onPress={() => router.push("/id-card")} color={theme.primary} />
               <QuickAction testID="qa-discover" icon="search" label={user.role === "investor" ? "Founders" : "Investors"} onPress={() => router.push("/(tabs)/discover")} color={theme.secondary} />
               <QuickAction testID="qa-pitch" icon="rocket" label="Ideas" onPress={() => router.push("/(tabs)/pitch")} color={theme.primary} />
@@ -137,10 +210,48 @@ export default function Home() {
             </Card>
           ) : null}
 
+          {/* Achievements */}
+          <View style={{ marginTop: spacing.lg }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <Text style={{ ...typography.caption, color: theme.textMuted }}>ACHIEVEMENTS</Text>
+              <Text style={{ color: theme.primary, fontSize: 12, fontWeight: "700" }}>{unlockedCount} / {achievements.length}</Text>
+            </View>
+            {loading ? (
+              <Skeleton height={80} />
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}>
+                {achievements.map((a) => (
+                  <AchievementBadge key={a.key} item={a} />
+                ))}
+              </ScrollView>
+            )}
+          </View>
+
           {/* Bento grid stats */}
           <View style={{ marginTop: spacing.lg, flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
             <StatCell label="LIVE PITCHES" value={String(stats.pitches || 0)} color={theme.primary} width="48%" />
             <StatCell label="YOUR CREDITS" value={String(user.credits || 0)} color={theme.secondary} width="48%" />
+          </View>
+
+          {/* Testimonials */}
+          <View style={{ marginTop: spacing.lg }}>
+            <Text style={{ ...typography.caption, color: theme.textMuted, marginBottom: 12 }}>SUCCESS STORIES</Text>
+            <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
+              {TESTIMONIALS.map((t, i) => (
+                <View key={i} style={{ width: width - spacing.lg * 2 - 8, marginRight: 12 }}>
+                  <Card style={{ padding: 18 }}>
+                    <Ionicons name="chatbox-ellipses" size={20} color={theme.primary} />
+                    <Text style={{ color: theme.text, fontSize: 15, marginTop: 8, lineHeight: 22, fontStyle: "italic" }}>
+                      &ldquo;{t.quote}&rdquo;
+                    </Text>
+                    <View style={{ flexDirection: "row", alignItems: "center", marginTop: 12, gap: 8 }}>
+                      <View style={{ width: 4, height: 24, backgroundColor: theme.primary }} />
+                      <Text style={{ color: theme.textMuted, fontSize: 12, fontWeight: "700" }}>{t.name}</Text>
+                    </View>
+                  </Card>
+                </View>
+              ))}
+            </ScrollView>
           </View>
 
           <View style={{ marginTop: spacing.lg }}>

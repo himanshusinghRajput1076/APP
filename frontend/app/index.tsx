@@ -16,6 +16,8 @@ import Animated, {
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/theme/ThemeProvider";
+import { storage } from "@/src/utils/storage";
+import { ONBOARDING_KEY } from "@/app/onboarding";
 
 const { width } = Dimensions.get("window");
 
@@ -47,12 +49,14 @@ export default function Splash() {
 
   useEffect(() => {
     if (loading) return;
-    const t = setTimeout(() => {
+    const t = setTimeout(async () => {
       if (user) {
         if (user.role === "admin") router.replace("/admin");
         else router.replace("/(tabs)/home");
       } else {
-        router.replace("/(auth)/welcome");
+        const seen = await storage.getItem<string>(ONBOARDING_KEY, "");
+        if (seen === "1") router.replace("/(auth)/welcome");
+        else router.replace("/onboarding");
       }
     }, 2000);
     return () => clearTimeout(t);
