@@ -1,0 +1,58 @@
+name: Build and submit Android via EAS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-submit:
+    name: EAS Android build and submit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: yarn install --frozen-lockfile
+
+      - name: Install eas-cli
+        run: npm install -g eas-cli
+
+      - name: Login to Expo
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo 'EXPO_TOKEN is required';
+            exit 1;
+          fi
+          eas login --token "$EXPO_TOKEN"
+
+      - name: Build Android app bundle
+        working-directory: frontend
+        env:
+          EXPO_PUBLIC_BACKEND_URL: ${{ secrets.EXPO_PUBLIC_BACKEND_URL }}
+          EAS_BUILD_ANDROID_SERVICE_ACCOUNT_JSON: ${{ secrets.EAS_BUILD_ANDROID_SERVICE_ACCOUNT_JSON }}
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_PUBLIC_BACKEND_URL" ]; then
+            echo 'EXPO_PUBLIC_BACKEND_URL is required';
+            exit 1;
+          fi
+          eas build --platform android --profile production --non-interactive
+
+      - name: Submit Android app to Play Store
+        working-directory: frontend
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_BUILD_ANDROID_SERVICE_ACCOUNT_JSON: ${{ secrets.EAS_BUILD_ANDROID_SERVICE_ACCOUNT_JSON }}
+        run: |
+          eas submit -p android --latest --track internal --non-interactive

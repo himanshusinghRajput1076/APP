@@ -1,0 +1,29 @@
+version: '3.8'
+services:
+  mongo:
+    image: mongo:6.0
+    restart: unless-stopped
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=ideacon
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URL=mongodb://mongo:27017
+      - DB_NAME=ideacon
+      - JWT_SECRET_KEY=change-me-in-prod
+      - ACCESS_TOKEN_EXPIRE_MINUTES=10080
+      - PAYMENT_MODE=mock
+    volumes:
+      - ./backend:/app:ro
+
+volumes:
+  mongo-data:
