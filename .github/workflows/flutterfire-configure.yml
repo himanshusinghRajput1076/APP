@@ -1,0 +1,51 @@
+name: Generate Firebase options (flutterfire)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  flutterfire-configure:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "stable"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y curl git unzip xz-utils
+
+      - name: Install dart/activate flutterfire_cli
+        env:
+          PUB_CACHE: ${{ runner.temp }}/.pub-cache
+        run: |
+          export PATH="${{ runner.temp }}/.pub-cache/bin:$PATH"
+          dart pub global activate flutterfire_cli
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          service_account_key: ${{ secrets.GCLOUD_SERVICE_KEY }}
+          project_id: plan-b-a539d
+
+      - name: Run flutterfire configure
+        env:
+          PATH: ${{ runner.temp }}/.pub-cache/bin:${{ env.PATH }}
+        run: |
+          flutter pub get
+          flutterfire configure --project=plan-b-a539d --out=flutter/lib/firebase_options.dart --no-analytics || true
+
+      - name: Commit generated firebase_options.dart
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add flutter/lib/firebase_options.dart
+          git commit -m "chore(firebase): add generated firebase_options.dart" || echo "No changes to commit"
+          git push origin HEAD:main || echo "Push failed"
