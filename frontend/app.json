@@ -24,9 +24,10 @@
       "edgeToEdgeEnabled": true,
       "package": "com.emergent.futurelaunchpad.wb2mxs",
       "permissions": [
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "CAMERA"
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -54,6 +55,13 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "EXPO_PUBLIC_BACKEND_URL": "https://api.ideacon.com",
+      "router": {},
+      "eas": {
+        "projectId": "d8e6b100-6bfc-4793-a397-b03057931c79"
+      }
     }
   }
 }

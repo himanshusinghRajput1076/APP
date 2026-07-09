@@ -71,7 +71,7 @@ export default function Subscription() {
       await refresh();
       setSuccess(true);
     } catch (e: any) {
-      // eslint-disable-next-line no-console
+       
       console.log("pay error", e?.response?.data);
     } finally {
       setPaying(false);

@@ -1,0 +1,15 @@
+{
+  "build": {
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      }
+    },
+    "development": {
+      "developmentClient": true,
+      "android": {
+        "gradleCommand": ":app:assembleDebug"
+      }
+    }
+  }
+}

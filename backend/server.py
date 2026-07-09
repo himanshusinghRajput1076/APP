@@ -6,6 +6,7 @@ import os
 import uuid
 import logging
 import asyncio
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Literal
@@ -15,6 +16,8 @@ from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, WebSocke
 from fastapi.security import OAuth2PasswordBearer
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from sqlalchemy import text as sql_text
+from db import sqlite as sqlite_db
 from pydantic import BaseModel, Field, EmailStr
 from dotenv import load_dotenv
 from jose import JWTError, jwt
@@ -26,7 +29,7 @@ from passlib.context import CryptContext
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / ".env")
 
-MONGO_URL = os.environ["MONGO_URL"]
+MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
 DB_NAME = os.environ.get("DB_NAME", "ideacon")
 JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
 JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
@@ -124,19 +127,426 @@ def decode_token(token: str) -> dict:
 # --------------------------------------------------------------------------- #
 # DB setup
 # --------------------------------------------------------------------------- #
-mongo_client: AsyncIOMotorClient = AsyncIOMotorClient(MONGO_URL)
-db = mongo_client[DB_NAME]
+USE_SQLITE = os.environ.get("USE_SQLITE", "0") == "1"
 
-users_c = db["users"]
-kyc_c = db["kyc"]
-subs_c = db["subscriptions"]
-portfolios_c = db["portfolios"]
-pitches_c = db["pitches"]
-chats_c = db["chats"]
-messages_c = db["messages"]
-support_c = db["support"]
-payments_c = db["payments"]
-credits_c = db["credits"]
+if USE_SQLITE:
+    # initialize sqlite and provide simple sync helpers for tests/local runs
+    sqlite_db.init_db()
+    engine = sqlite_db.get_engine()
+
+    class _SqliteUpdateResult:
+        def __init__(self, matched_count: int = 0, modified_count: int = 0):
+            self.matched_count = matched_count
+            self.modified_count = modified_count
+
+    class _SqliteCollection:
+        def __init__(self, table):
+            self.table = table
+
+        def _row_to_doc(self, row):
+            if not row:
+                return None
+            try:
+                data = row._mapping["doc"]
+            except Exception:
+                try:
+                    data = row["doc"]
+                except Exception:
+                    data = row[0]
+            return json.loads(data)
+
+        def _apply_projection(self, doc, projection):
+            if projection is None or not isinstance(projection, dict) or doc is None:
+                return doc
+            doc = dict(doc)
+            include = any(bool(v) for v in projection.values())
+            exclude = any(v == 0 for v in projection.values())
+            if include and not exclude:
+                result = {}
+                for key, value in projection.items():
+                    if bool(value) and key in doc:
+                        result[key] = doc[key]
+                if "id" in doc and "id" not in projection:
+                    result["id"] = doc["id"]
+                return result
+            for key, value in projection.items():
+                if value == 0 and key in doc:
+                    doc.pop(key)
+            return doc
+
+        def _build_where(self, q, params):
+            where = ["collection = :collection"]
+            for k, v in (q or {}).items():
+                if isinstance(v, dict):
+                    for op, val in v.items():
+                        if op == "$ne":
+                            if val is None:
+                                where.append(f"json_extract(doc, '$.{k}') IS NOT NULL")
+                            else:
+                                params[f"{k}_ne"] = val
+                                where.append(f"json_extract(doc, '$.{k}') != :{k}_ne")
+                        elif op == "$gte":
+                            params[f"{k}_gte"] = val
+                            where.append(f"json_extract(doc, '$.{k}') >= :{k}_gte")
+                        elif op == "$gt":
+                            params[f"{k}_gt"] = val
+                            where.append(f"json_extract(doc, '$.{k}') > :{k}_gt")
+                        elif op == "$lte":
+                            params[f"{k}_lte"] = val
+                            where.append(f"json_extract(doc, '$.{k}') <= :{k}_lte")
+                        elif op == "$lt":
+                            params[f"{k}_lt"] = val
+                            where.append(f"json_extract(doc, '$.{k}') < :{k}_lt")
+                        elif op == "$in":
+                            if not isinstance(val, (list, tuple)):
+                                raise ValueError("$in requires a list")
+                            placeholders = []
+                            for idx, item in enumerate(val):
+                                key_name = f"{k}_in_{idx}"
+                                params[key_name] = item
+                                placeholders.append(f":{key_name}")
+                            where.append(f"json_extract(doc, '$.{k}') IN ({', '.join(placeholders)})")
+                        elif op == "$nin":
+                            if not isinstance(val, (list, tuple)):
+                                raise ValueError("$nin requires a list")
+                            placeholders = []
+                            for idx, item in enumerate(val):
+                                key_name = f"{k}_nin_{idx}"
+                                params[key_name] = item
+                                placeholders.append(f":{key_name}")
+                            where.append(f"json_extract(doc, '$.{k}') NOT IN ({', '.join(placeholders)})")
+                        elif op == "$exists":
+                            if val:
+                                where.append(f"json_extract(doc, '$.{k}') IS NOT NULL")
+                            else:
+                                where.append(f"json_extract(doc, '$.{k}') IS NULL")
+                        else:
+                            raise ValueError(f"Unsupported query operator: {op}")
+                else:
+                    if v is None:
+                        where.append(f"json_extract(doc, '$.{k}') IS NULL")
+                    else:
+                        params[k] = v
+                        where.append(f"json_extract(doc, '$.{k}') = :{k}")
+            return where
+
+        async def create_index(self, *args, **kwargs):
+            return
+
+        async def find_one(self, q, projection=None):
+            params = {"collection": self.table}
+            where = self._build_where(q, params)
+            sql = sql_text(f"SELECT doc FROM docs WHERE {' AND '.join(where)} LIMIT 1")
+            with engine.connect() as conn:
+                res = conn.execute(sql, params).first()
+                doc = self._row_to_doc(res)
+                return self._apply_projection(doc, projection)
+
+        async def insert_one(self, doc):
+            if "id" not in doc:
+                doc["id"] = uid()
+            payload = json.dumps(doc, default=str)
+            with engine.begin() as conn:
+                conn.execute(sql_text("INSERT INTO docs (collection, id, doc) VALUES (:collection, :id, :doc)"), {"collection": self.table, "id": doc["id"], "doc": payload})
+
+        async def update_one(self, q, update, upsert=False):
+            existing = await self.find_one(q)
+            if not existing and upsert:
+                new = {}
+                if "$set" in update:
+                    new.update(update["$set"])
+                if "id" in q:
+                    new["id"] = q["id"]
+                await self.insert_one(new)
+                return _SqliteUpdateResult(matched_count=1, modified_count=1)
+            if not existing:
+                return _SqliteUpdateResult(matched_count=0, modified_count=0)
+            doc = dict(existing)
+            if "$set" in update:
+                doc.update(update["$set"])
+            if "$inc" in update:
+                for k, v in update["$inc"].items():
+                    doc[k] = doc.get(k, 0) + v
+            if "$addToSet" in update:
+                for k, v in update["$addToSet"].items():
+                    arr = set(doc.get(k, []))
+                    if isinstance(v, list):
+                        arr.update(v)
+                    else:
+                        arr.add(v)
+                    doc[k] = list(arr)
+            payload = json.dumps(doc, default=str)
+            with engine.begin() as conn:
+                conn.execute(sql_text("UPDATE docs SET doc = :doc WHERE collection = :collection AND id = :id"), {"doc": payload, "collection": self.table, "id": doc["id"]})
+            return _SqliteUpdateResult(matched_count=1, modified_count=1)
+
+        async def count_documents(self, q):
+            params = {"collection": self.table}
+            where = self._build_where(q, params)
+            sql = sql_text(f"SELECT COUNT(*) as c FROM docs WHERE {' AND '.join(where)}")
+            with engine.connect() as conn:
+                res = conn.execute(sql, params).first()
+                if not res:
+                    return 0
+                try:
+                    return res._mapping["c"]
+                except Exception:
+                    return res[0]
+
+        def find(self, q, projection=None):
+            params = {"collection": self.table}
+            where = self._build_where(q, params)
+            collection = self
+
+            class _Cursor:
+                def __init__(self, engine, where_sql, params, projection=None):
+                    self.engine = engine
+                    self.where_sql = where_sql
+                    self.params = params
+                    self.projection = projection
+                    self._limit = None
+                    self._sort = None
+
+                def sort(self, *args):
+                    if len(args) == 1:
+                        arg = args[0]
+                        if isinstance(arg, str):
+                            self._sort = [(arg, 1)]
+                        elif isinstance(arg, (tuple, list)) and len(arg) == 2 and isinstance(arg[0], str):
+                            self._sort = [arg]
+                        else:
+                            self._sort = list(arg)
+                    else:
+                        self._sort = [(args[0], args[1])]
+                    return self
+
+                def limit(self, n):
+                    self._limit = n
+                    return self
+
+                async def to_list(self, length=100):
+                    sql = f"SELECT doc FROM docs WHERE {self.where_sql}"
+                    if self._sort:
+                        fld, dir = self._sort[0]
+                        dir_sql = "DESC" if dir < 0 else "ASC"
+                        sql += f" ORDER BY json_extract(doc, '$.{fld}') {dir_sql}"
+                    if self._limit:
+                        sql += f" LIMIT {self._limit}"
+                    with self.engine.connect() as conn:
+                        res = conn.execute(sql_text(sql), self.params).fetchall()
+                        docs = [collection._apply_projection(collection._row_to_doc(r), self.projection) for r in res]
+                        if length is not None:
+                            return docs[:length]
+                        return docs
+
+            return _Cursor(engine, " AND ".join(where), params, projection)
+
+            class _Cursor:
+                def __init__(self, engine, where_sql, params):
+                    self.engine = engine
+                    self.where_sql = where_sql
+                    self.params = params
+                    self._limit = None
+                    self._sort = None
+
+                def sort(self, *args):
+                    if len(args) == 1:
+                        arg = args[0]
+                        if isinstance(arg, str):
+                            self._sort = [(arg, 1)]
+                        elif isinstance(arg, (tuple, list)) and len(arg) == 2 and isinstance(arg[0], str):
+                            self._sort = [arg]
+                        else:
+                            self._sort = list(arg)
+                    else:
+                        self._sort = [(args[0], args[1])]
+                    return self
+
+                def limit(self, n):
+                    self._limit = n
+                    return self
+
+                async def to_list(self, length=100):
+                    sql = f"SELECT doc FROM docs WHERE {self.where_sql}"
+                    if self._sort:
+                        fld, dir = self._sort[0]
+                        dir_sql = "DESC" if dir < 0 else "ASC"
+                        sql += f" ORDER BY json_extract(doc, '$.{fld}') {dir_sql}"
+                    if self._limit:
+                        sql += f" LIMIT {self._limit}"
+                    with self.engine.connect() as conn:
+                        res = conn.execute(sql_text(sql), self.params).fetchall()
+                        return [json.loads(r["doc"]) for r in res]
+
+            return _Cursor(engine, " AND ".join(where), params)
+
+        async def distinct(self, key, q=None):
+            docs = await self.find(q or {}, None).to_list(length=10000)
+            seen = set()
+            values = []
+            for doc in docs:
+                value = doc.get(key)
+                if value not in seen:
+                    seen.add(value)
+                    values.append(value)
+            return values
+
+        def aggregate(self, pipeline):
+            with engine.connect() as conn:
+                res = conn.execute(sql_text("SELECT doc FROM docs WHERE collection = :collection"), {"collection": self.table}).fetchall()
+            docs = [json.loads(r[0]) for r in res]
+
+            def _match(doc, filt):
+                if "$or" in filt:
+                    return any(_match(doc, clause) for clause in filt["$or"])
+                for key, value in filt.items():
+                    if isinstance(value, dict):
+                        for op, val in value.items():
+                            field_value = doc.get(key)
+                            if op == "$ne":
+                                if val is None:
+                                    if field_value is None:
+                                        return False
+                                else:
+                                    if field_value == val:
+                                        return False
+                            elif op == "$gte":
+                                if field_value is None or field_value < val:
+                                    return False
+                            elif op == "$gt":
+                                if field_value is None or field_value <= val:
+                                    return False
+                            elif op == "$lte":
+                                if field_value is None or field_value > val:
+                                    return False
+                            elif op == "$lt":
+                                if field_value is None or field_value >= val:
+                                    return False
+                            elif op == "$in":
+                                if field_value not in val:
+                                    return False
+                            elif op == "$nin":
+                                if field_value in val:
+                                    return False
+                            elif op == "$exists":
+                                exists = key in doc and doc.get(key) is not None
+                                if val and not exists:
+                                    return False
+                                if not val and exists:
+                                    return False
+                            else:
+                                raise ValueError(f"Unsupported aggregate operator: {op}")
+                    else:
+                        if doc.get(key) != value:
+                            return False
+                return True
+
+            def _sort(docs_list, sort_spec):
+                if isinstance(sort_spec, dict):
+                    items = list(sort_spec.items())
+                else:
+                    items = [(sort_spec, 1)]
+                def keyfunc(doc):
+                    return tuple((doc.get(k),) if v >= 0 else (_neg_for_sort(doc.get(k)),) for k, v in items)
+                return sorted(docs_list, key=keyfunc, reverse=False)
+
+            def _neg_for_sort(value):
+                if value is None:
+                    return value
+                if isinstance(value, (int, float)):
+                    return -value
+                return value
+
+            def _group(docs_list, group_spec):
+                by = group_spec.get("_id")
+                if isinstance(by, str) and by.startswith("$"):
+                    group_key = by[1:]
+                else:
+                    group_key = None
+                groups = {}
+                for doc in docs_list:
+                    key = doc.get(group_key) if group_key else None
+                    groups.setdefault(key, []).append(doc)
+                output = []
+                for key, items in groups.items():
+                    row = {"_id": key}
+                    for out_key, expr in group_spec.items():
+                        if out_key == "_id":
+                            continue
+                        if isinstance(expr, dict):
+                            if "$first" in expr:
+                                field = expr["$first"]
+                                if isinstance(field, str) and field.startswith("$"):
+                                    row[out_key] = items[0].get(field[1:])
+                                else:
+                                    row[out_key] = field
+                            elif "$sum" in expr:
+                                arg = expr["$sum"]
+                                if isinstance(arg, str) and arg.startswith("$"):
+                                    field = arg[1:]
+                                    row[out_key] = sum((item.get(field) or 0) for item in items)
+                                elif isinstance(arg, int):
+                                    row[out_key] = sum(arg for _ in items)
+                                else:
+                                    row[out_key] = 0
+                            else:
+                                raise ValueError(f"Unsupported group accumulator: {expr}")
+                        else:
+                            row[out_key] = expr
+                    output.append(row)
+                return output
+
+            results = docs
+            for stage in pipeline:
+                if "$match" in stage:
+                    results = [doc for doc in results if _match(doc, stage["$match"])]
+                elif "$sort" in stage:
+                    sort_spec = stage["$sort"]
+                    if isinstance(sort_spec, dict):
+                        for key, direction in reversed(list(sort_spec.items())):
+                            results = sorted(results, key=lambda d: d.get(key), reverse=(direction < 0))
+                    else:
+                        results = sorted(results, key=lambda d: d.get(sort_spec))
+                elif "$group" in stage:
+                    results = _group(results, stage["$group"])
+                elif "$limit" in stage:
+                    results = results[: stage["$limit"]]
+                else:
+                    raise ValueError(f"Unsupported aggregate stage: {stage}")
+
+            class _AggregateCursor:
+                def __init__(self, docs):
+                    self.docs = docs
+
+                async def to_list(self, length=100):
+                    return self.docs[:length]
+
+            return _AggregateCursor(results)
+
+    users_c = _SqliteCollection("users")
+    kyc_c = _SqliteCollection("kyc")
+    subs_c = _SqliteCollection("subscriptions")
+    portfolios_c = _SqliteCollection("portfolios")
+    pitches_c = _SqliteCollection("pitches")
+    chats_c = _SqliteCollection("chats")
+    messages_c = _SqliteCollection("messages")
+    support_c = _SqliteCollection("support")
+    payments_c = _SqliteCollection("payments")
+    credits_c = _SqliteCollection("credits")
+else:
+    mongo_client: AsyncIOMotorClient = AsyncIOMotorClient(MONGO_URL)
+    db = mongo_client[DB_NAME]
+
+    users_c = db["users"]
+    kyc_c = db["kyc"]
+    subs_c = db["subscriptions"]
+    portfolios_c = db["portfolios"]
+    pitches_c = db["pitches"]
+    chats_c = db["chats"]
+    messages_c = db["messages"]
+    support_c = db["support"]
+    payments_c = db["payments"]
+    credits_c = db["credits"]
 
 
 async def seed_admin():
@@ -167,12 +577,14 @@ async def seed_admin():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await users_c.create_index("email", unique=True)
-    await users_c.create_index("id", unique=True)
-    await messages_c.create_index([("chat_id", 1), ("created_at", 1)])
+    if not USE_SQLITE:
+        await users_c.create_index("email", unique=True)
+        await users_c.create_index("id", unique=True)
+        await messages_c.create_index([("chat_id", 1), ("created_at", 1)])
     await seed_admin()
     yield
-    mongo_client.close()
+    if not USE_SQLITE:
+        mongo_client.close()
 
 
 # --------------------------------------------------------------------------- #
@@ -346,49 +758,55 @@ async def award_achievement(user_id: str, achievement_key: str) -> bool:
         {"id": user_id, "achievements": {"$ne": achievement_key}},
         {"$addToSet": {"achievements": achievement_key}},
     )
-    return r.modified_count > 0
-
+    if r is None:
+        return True
+    return getattr(r, "modified_count", 1) > 0
 
 @api.post("/auth/signup", response_model=TokenResponse)
 async def signup(req: SignupRequest):
-    existing = await users_c.find_one({"email": req.email.lower()})
-    if existing:
+    email = req.email.lower()
+    if await users_c.find_one({"email": email}):
         raise HTTPException(400, "Email already registered")
+
     now = now_utc()
     user_id = uid()
-    ref_code = generate_referral_code(user_id)
-
-    # Resolve referrer if code is provided (case-insensitive)
-    referred_by = None
-    if req.referral_code:
-        clean = req.referral_code.strip().upper()
-        if clean:
-            ref_doc = await users_c.find_one({"referral_code": clean}, {"_id": 0, "id": 1})
-            if ref_doc:
-                referred_by = ref_doc["id"]
-
-    doc = {
+    user_doc = {
         "id": user_id,
-        "email": req.email.lower(),
-        "hashed_password": hash_pw(req.password),
+        "email": email,
         "name": req.name,
         "role": req.role,
+        "hashed_password": hash_pw(req.password),
         "kyc_status": "pending",
-        "created_at": iso(now),
-        "trial_expires_at": iso(now + timedelta(hours=24)),  # 24 hr free trial
-        "credits": 10,  # signup bonus
-        "ignite_tokens": 0,
-        "photo": None,
         "active": True,
-        "subscription": None,
-        "referral_code": ref_code,
-        "referred_by": referred_by,
+        "credits": 0,
+        "ignite_tokens": 0,
         "achievements": ["welcome_aboard"],
+        "created_at": iso(now),
+        "trial_expires_at": iso(now + timedelta(days=1)),
+        "referral_code": generate_referral_code(user_id),
     }
-    await users_c.insert_one(doc)
-    token = create_token({"sub": user_id, "email": req.email.lower(), "role": req.role})
-    user_out = sanitize_user(doc)
-    return {"access_token": token, "token_type": "bearer", "user": user_out}
+
+    if req.referral_code:
+        referrer = await users_c.find_one({"referral_code": req.referral_code})
+        if referrer:
+            user_doc["referred_by"] = referrer["id"]
+
+    if req.role == ROLE_INVESTOR:
+        plan = PLANS["investor_basic"]
+        user_doc["subscription"] = {
+            "plan_id": "investor_basic",
+            "tier": plan["tier"],
+            "limit": plan["limit"],
+            "started_at": iso(now),
+            "expires_at": iso(now + timedelta(days=plan["days"])),
+            "amount_paid": 0,
+        }
+        user_doc["credits"] = plan["credits"]
+        user_doc["ignite_tokens"] = plan["ignite_tokens"]
+
+    await users_c.insert_one(user_doc)
+    token = create_token({"sub": user_doc["id"], "email": user_doc["email"], "role": user_doc["role"]})
+    return {"access_token": token, "token_type": "bearer", "user": sanitize_user(user_doc)}
 
 @api.post("/auth/login", response_model=TokenResponse)
 async def login(req: LoginRequest):
