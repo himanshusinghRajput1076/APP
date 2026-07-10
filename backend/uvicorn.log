@@ -1,0 +1,108 @@
+nohup: ignoring input
+INFO:     Started server process [10767]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:45198 - "GET /api/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36224 - "GET /api/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36226 - "POST /api/auth/signup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36238 - "POST /api/auth/signup HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:36242 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36254 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36258 - "POST /api/auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:36268 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36274 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36288 - "GET /api/sectors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36298 - "POST /api/kyc/submit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36302 - "GET /api/kyc/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36318 - "POST /api/auth/signup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36324 - "GET /api/payment/plans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36332 - "GET /api/payment/plans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36348 - "POST /api/payment/create-order HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36364 - "POST /api/payment/verify HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36378 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36390 - "POST /api/payment/create-order HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:36404 - "POST /api/portfolio/update HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36412 - "GET /api/portfolio/37b3f3e7-d21b-4082-961b-096eee383c46 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36416 - "GET /api/discover HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36420 - "POST /api/auth/signup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36428 - "GET /api/discover HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36436 - "POST /api/pitch HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36452 - "GET /api/pitch HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36458 - "POST /api/pitch/90a9e363-9852-4841-88c4-329f2753216d/like HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36470 - "POST /api/pitch HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:36476 - "POST /api/chat/send HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36490 - "GET /api/chat/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36492 - "GET /api/chat/118e0531-6ced-4200-869f-ae03b9e1c16b HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 36504) - "WebSocket /api/ws/37b3f3e7-d21b-4082-961b-096eee383c46?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIzN2IzZjNlNy1kMjFiLTQwODItOTYxYi0wOTZlZWUzODNjNDYiLCJlbWFpbCI6InRlc3Rfc3R1XzU1MGI5Y0BleGFtcGxlLmNvbSIsInJvbGUiOiJzdHVkZW50IiwiZXhwIjoxNzg0MjM3MzIwLCJpYXQiOjE3ODM2MzI1MjB9.jm7RjuRTs-khvYMPtqq0rDZE8WHaWQa-qBcGcG9EioU" [accepted]
+INFO:     connection open
+INFO:     ('127.0.0.1', 36512) - "WebSocket /api/ws/118e0531-6ced-4200-869f-ae03b9e1c16b?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMThlMDUzMS02Y2VkLTQyMDAtODY5Zi1hZTAzYjllMWMxNmIiLCJlbWFpbCI6InRlc3RfaW52XzU1MGI5Y0BleGFtcGxlLmNvbSIsInJvbGUiOiJpbnZlc3RvciIsImV4cCI6MTc4NDIzNzMyMSwiaWF0IjoxNzgzNjMyNTIxfQ._zBP8DJnm7QMkAMXA4pFGWuI-gfaQr8NlsD8PNoYpjA" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     ('127.0.0.1', 36522) - "WebSocket /api/ws/37b3f3e7-d21b-4082-961b-096eee383c46?token=bad.token.value" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:36530 - "GET /api/id-card HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36540 - "POST /api/support HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36552 - "GET /api/support HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36568 - "GET /api/support HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36576 - "GET /api/admin/analytics HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36586 - "GET /api/admin/users?role=student HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36602 - "GET /api/admin/kyc/37b3f3e7-d21b-4082-961b-096eee383c46 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36604 - "POST /api/admin/kyc/37b3f3e7-d21b-4082-961b-096eee383c46/approve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36612 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36620 - "POST /api/admin/user/b5888ef5-66fa-43f6-b886-48c0d941ecb9/toggle-active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36626 - "POST /api/admin/user/b5888ef5-66fa-43f6-b886-48c0d941ecb9/toggle-active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36628 - "GET /api/admin/analytics HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:36724 - "GET /api/ HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36730 - "POST /api/auth/signup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36740 - "POST /api/auth/signup HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:36748 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36752 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36768 - "POST /api/auth/login HTTP/1.1" 401 Unauthorized
+INFO:     127.0.0.1:36770 - "POST /api/auth/login HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36774 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36790 - "GET /api/sectors HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36806 - "POST /api/kyc/submit HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36810 - "GET /api/kyc/status HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36818 - "POST /api/auth/signup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36822 - "GET /api/payment/plans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36838 - "GET /api/payment/plans HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36846 - "POST /api/payment/create-order HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36848 - "POST /api/payment/verify HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36854 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36856 - "POST /api/payment/create-order HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:36866 - "POST /api/portfolio/update HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36878 - "GET /api/portfolio/c7790e43-7da4-4f73-8357-f3604cbb88d7 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36890 - "GET /api/discover HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36894 - "POST /api/auth/signup HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36904 - "GET /api/discover HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36916 - "POST /api/pitch HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36918 - "GET /api/pitch HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36932 - "POST /api/pitch/2fc1c81e-549e-4498-9719-f18e0b01cb8a/like HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36946 - "POST /api/pitch HTTP/1.1" 403 Forbidden
+INFO:     127.0.0.1:36962 - "POST /api/chat/send HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36966 - "GET /api/chat/list HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36980 - "GET /api/chat/6b1b544a-79d1-4d94-9ed1-637fb79782b9 HTTP/1.1" 200 OK
+INFO:     ('127.0.0.1', 36992) - "WebSocket /api/ws/c7790e43-7da4-4f73-8357-f3604cbb88d7?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjNzc5MGU0My03ZGE0LTRmNzMtODM1Ny1mMzYwNGNiYjg4ZDciLCJlbWFpbCI6InRlc3Rfc3R1XzRmMmY5MEBleGFtcGxlLmNvbSIsInJvbGUiOiJzdHVkZW50IiwiZXhwIjoxNzg0MjM3OTA2LCJpYXQiOjE3ODM2MzMxMDZ9.ikejMhop2vLgUZCK7-PCdtaKmwke9pukCcIlb1Rn5ww" [accepted]
+INFO:     connection open
+INFO:     ('127.0.0.1', 37000) - "WebSocket /api/ws/6b1b544a-79d1-4d94-9ed1-637fb79782b9?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2YjFiNTQ0YS03OWQxLTRkOTQtOWVkMS02MzdmYjc5NzgyYjkiLCJlbWFpbCI6InRlc3RfaW52XzRmMmY5MEBleGFtcGxlLmNvbSIsInJvbGUiOiJpbnZlc3RvciIsImV4cCI6MTc4NDIzNzkwNiwiaWF0IjoxNzgzNjMzMTA2fQ.R6LApuWmBjRi3UHe9mJrmCATGDXbyz2WmP1u_KYwtt4" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     ('127.0.0.1', 37010) - "WebSocket /api/ws/c7790e43-7da4-4f73-8357-f3604cbb88d7?token=bad.token.value" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     connection closed
+INFO:     127.0.0.1:37012 - "GET /api/id-card HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37014 - "POST /api/support HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37026 - "GET /api/support HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37034 - "GET /api/support HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37046 - "GET /api/admin/analytics HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37048 - "GET /api/admin/users?role=student HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37050 - "GET /api/admin/kyc/c7790e43-7da4-4f73-8357-f3604cbb88d7 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37060 - "POST /api/admin/kyc/c7790e43-7da4-4f73-8357-f3604cbb88d7/approve HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37062 - "GET /api/auth/me HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37076 - "POST /api/admin/user/fc8ac871-f77d-4174-b587-8dc01ce262b7/toggle-active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37090 - "POST /api/admin/user/fc8ac871-f77d-4174-b587-8dc01ce262b7/toggle-active HTTP/1.1" 200 OK
+INFO:     127.0.0.1:37092 - "GET /api/admin/analytics HTTP/1.1" 403 Forbidden
