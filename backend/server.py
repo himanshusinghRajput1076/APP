@@ -31,7 +31,7 @@ load_dotenv(ROOT_DIR / ".env")
 
 MONGO_URL = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
 DB_NAME = os.environ.get("DB_NAME", "ideacon")
-JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
+JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "change-me-in-prod")
 JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
 ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@ideacon.in")
@@ -74,7 +74,7 @@ ACHIEVEMENTS = {
     "angel_touch": {"name": "Angel Touch", "desc": "Gifted 5+ ignites to founders", "icon": "gift", "color": "primary"},
 }
 
-# 42 sectors
+# 40 sectors
 SECTORS = [
     "Information Technology / IT Services", "Software Development",
     "Artificial Intelligence & Automation", "Cybersecurity", "Digital Marketing",
@@ -127,7 +127,7 @@ def decode_token(token: str) -> dict:
 # --------------------------------------------------------------------------- #
 # DB setup
 # --------------------------------------------------------------------------- #
-USE_SQLITE = os.environ.get("USE_SQLITE", "0") == "1"
+USE_SQLITE = os.environ.get("USE_SQLITE", "1") == "1"
 
 if USE_SQLITE:
     # initialize sqlite and provide simple sync helpers for tests/local runs
@@ -269,12 +269,13 @@ if USE_SQLITE:
                     doc[k] = doc.get(k, 0) + v
             if "$addToSet" in update:
                 for k, v in update["$addToSet"].items():
-                    arr = set(doc.get(k, []))
+                    arr = list(doc.get(k, []))
                     if isinstance(v, list):
-                        arr.update(v)
+                        for item in v:
+                            if item not in arr: arr.append(item)
                     else:
-                        arr.add(v)
-                    doc[k] = list(arr)
+                        if v not in arr: arr.append(v)
+                    doc[k] = arr
             payload = json.dumps(doc, default=str)
             with engine.begin() as conn:
                 conn.execute(sql_text("UPDATE docs SET doc = :doc WHERE collection = :collection AND id = :id"), {"doc": payload, "collection": self.table, "id": doc["id"]})
@@ -341,53 +342,20 @@ if USE_SQLITE:
 
             return _Cursor(engine, " AND ".join(where), params, projection)
 
-            class _Cursor:
-                def __init__(self, engine, where_sql, params):
-                    self.engine = engine
-                    self.where_sql = where_sql
-                    self.params = params
-                    self._limit = None
-                    self._sort = None
 
-                def sort(self, *args):
-                    if len(args) == 1:
-                        arg = args[0]
-                        if isinstance(arg, str):
-                            self._sort = [(arg, 1)]
-                        elif isinstance(arg, (tuple, list)) and len(arg) == 2 and isinstance(arg[0], str):
-                            self._sort = [arg]
-                        else:
-                            self._sort = list(arg)
-                    else:
-                        self._sort = [(args[0], args[1])]
-                    return self
-
-                def limit(self, n):
-                    self._limit = n
-                    return self
-
-                async def to_list(self, length=100):
-                    sql = f"SELECT doc FROM docs WHERE {self.where_sql}"
-                    if self._sort:
-                        fld, dir = self._sort[0]
-                        dir_sql = "DESC" if dir < 0 else "ASC"
-                        sql += f" ORDER BY json_extract(doc, '$.{fld}') {dir_sql}"
-                    if self._limit:
-                        sql += f" LIMIT {self._limit}"
-                    with self.engine.connect() as conn:
-                        res = conn.execute(sql_text(sql), self.params).fetchall()
-                        return [json.loads(r["doc"]) for r in res]
-
-            return _Cursor(engine, " AND ".join(where), params)
 
         async def distinct(self, key, q=None):
             docs = await self.find(q or {}, None).to_list(length=10000)
-            seen = set()
+            seen_prims = set()
             values = []
             for doc in docs:
                 value = doc.get(key)
-                if value not in seen:
-                    seen.add(value)
+                if isinstance(value, (dict, list)):
+                    if value not in values:
+                        values.append(value)
+                elif value not in seen_prims:
+                    seen_prims.add(value)
+                    values.append(value)
                     values.append(value)
             return values
 
@@ -504,7 +472,7 @@ if USE_SQLITE:
                     sort_spec = stage["$sort"]
                     if isinstance(sort_spec, dict):
                         for key, direction in reversed(list(sort_spec.items())):
-                            results = sorted(results, key=lambda d: d.get(key), reverse=(direction < 0))
+                            results = sorted(results, key=lambda d, k=key: (d.get(k) is None, d.get(k) or ""), reverse=(direction < 0))
                     else:
                         results = sorted(results, key=lambda d: d.get(sort_spec))
                 elif "$group" in stage:
@@ -571,7 +539,7 @@ async def seed_admin():
         # Ensure admin password always matches env (idempotent reset)
         await users_c.update_one(
             {"email": ADMIN_EMAIL},
-            {"$set": {"hashed_password": doc["hashed_password"], "role": ROLE_ADMIN, "active": True}},
+            {"$set": {"role": ROLE_ADMIN, "active": True}},
         )
 
 
@@ -596,7 +564,7 @@ api = APIRouter(prefix="/api")
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:8081", "http://localhost:3000", "http://localhost:8000"], # specific origins for security
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -792,17 +760,8 @@ async def signup(req: SignupRequest):
             user_doc["referred_by"] = referrer["id"]
 
     if req.role == ROLE_INVESTOR:
-        plan = PLANS["investor_basic"]
-        user_doc["subscription"] = {
-            "plan_id": "investor_basic",
-            "tier": plan["tier"],
-            "limit": plan["limit"],
-            "started_at": iso(now),
-            "expires_at": iso(now + timedelta(days=plan["days"])),
-            "amount_paid": 0,
-        }
-        user_doc["credits"] = plan["credits"]
-        user_doc["ignite_tokens"] = plan["ignite_tokens"]
+        # No free premium subscription; start with default limits just like startups/students.
+        pass
 
     await users_c.insert_one(user_doc)
     token = create_token({"sub": user_doc["id"], "email": user_doc["email"], "role": user_doc["role"]})
@@ -838,7 +797,7 @@ async def get_sectors():
 # --------------------------------------------------------------------------- #
 @api.post("/kyc/submit")
 async def submit_kyc(req: KYCRequest, current: Dict[str, Any] = Depends(get_current_user)):
-    doc = req.dict()
+    doc = req.model_dump()
     doc["user_id"] = current["id"]
     doc["submitted_at"] = iso(now_utc())
     doc["status"] = "submitted"
@@ -857,7 +816,7 @@ async def kyc_status(current: Dict[str, Any] = Depends(get_current_user)):
 # --------------------------------------------------------------------------- #
 @api.post("/portfolio/update")
 async def update_portfolio(req: PortfolioRequest, current: Dict[str, Any] = Depends(get_current_user)):
-    updates = {k: v for k, v in req.dict().items() if v is not None}
+    updates = {k: v for k, v in req.model_dump().items() if v is not None}
     updates["updated_at"] = iso(now_utc())
     if updates:
         await users_c.update_one({"id": current["id"]}, {"$set": updates})
@@ -914,8 +873,11 @@ async def discover(
     if sector:
         query["sector"] = sector
 
-    cursor = users_c.find(query, {"_id": 0, "hashed_password": 0}).limit(max(limit, 0) if limit > 0 else 0)
-    docs = await cursor.to_list(length=max(limit, 0))
+    if limit <= 0:
+        return {"profiles": [], "limit": 0}
+
+    cursor = users_c.find(query, {"_id": 0, "hashed_password": 0}).limit(limit)
+    docs = await cursor.to_list(length=limit)
     return {
         "profiles": [public_user(d) for d in docs],
         "limit": limit,
@@ -936,7 +898,7 @@ async def create_pitch(req: PitchRequest, current: Dict[str, Any] = Depends(get_
         "user_name": current.get("name"),
         "user_role": current["role"],
         "user_photo": current.get("photo"),
-        **req.dict(),
+        **req.model_dump(),
         "likes": 0,
         "ignites": 0,
         "ignite_investors": [],
@@ -1371,7 +1333,7 @@ async def create_support(req: SupportRequest, current: Dict[str, Any] = Depends(
         "user_id": current["id"],
         "user_name": current.get("name"),
         "user_email": current["email"],
-        **req.dict(),
+        **req.model_dump(),
         "status": "open",
         "created_at": iso(now_utc()),
     }

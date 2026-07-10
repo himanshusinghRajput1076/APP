@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { storage } from "@/src/utils/storage";
 
 const { width, height } = Dimensions.get("window");
-const ONBOARDING_KEY = "ideacon.onboarded";
+export const ONBOARDING_KEY = "ideacon.onboarded";
 
 type Slide = {
   role: string;
@@ -156,4 +156,3 @@ export default function Onboarding() {
   );
 }
 
-export { ONBOARDING_KEY };

@@ -36,6 +36,11 @@ export default function Home() {
   const { theme, toggle, mode } = useTheme();
   const { user, refresh, signOut } = useAuth();
   const router = useRouter();
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.replace("/(auth)/login");
+  };
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>({});
@@ -96,7 +101,7 @@ export default function Home() {
             <TouchableOpacity testID="theme-toggle" onPress={toggle} style={{ width: 40, height: 40, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center" }}>
               <Ionicons name={mode === "dark" ? "sunny-outline" : "moon-outline"} size={18} color={theme.text} />
             </TouchableOpacity>
-            <TouchableOpacity testID="logout-btn" onPress={signOut} style={{ width: 40, height: 40, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center" }}>
+            <TouchableOpacity testID="logout-btn" onPress={handleSignOut} style={{ width: 40, height: 40, borderWidth: 1, borderColor: theme.border, alignItems: "center", justifyContent: "center" }}>
               <Ionicons name="log-out-outline" size={18} color={theme.text} />
             </TouchableOpacity>
           </View>
@@ -242,7 +247,7 @@ export default function Home() {
                   <Card style={{ padding: 18 }}>
                     <Ionicons name="chatbox-ellipses" size={20} color={theme.primary} />
                     <Text style={{ color: theme.text, fontSize: 15, marginTop: 8, lineHeight: 22, fontStyle: "italic" }}>
-                      &ldquo;{t.quote}&rdquo;
+                      {"\u201C"}{t.quote}{"\u201D"}
                     </Text>
                     <View style={{ flexDirection: "row", alignItems: "center", marginTop: 12, gap: 8 }}>
                       <View style={{ width: 4, height: 24, backgroundColor: theme.primary }} />

@@ -9,7 +9,9 @@ import { useIconFonts } from "@/src/hooks/use-icon-fonts";
 import { ThemeProvider, useTheme } from "@/src/theme/ThemeProvider";
 import { AuthProvider } from "@/src/context/AuthContext";
 
-LogBox.ignoreAllLogs(true);
+if (!__DEV__) {
+  LogBox.ignoreAllLogs(true);
+}
 
 SplashScreen.preventAutoHideAsync();
 

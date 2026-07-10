@@ -17,7 +17,7 @@ async function pickImageBase64(): Promise<string | null> {
     const ImagePicker = await import("expo-image-picker");
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return null;
-    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.6, base64: true, allowsEditing: true, aspect: [1,1] });
+    const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: "images" as any, quality: 0.6, base64: true, allowsEditing: true, aspect: [1,1] });
     if (r.canceled || !r.assets?.[0]?.base64) return null;
     return `data:image/jpeg;base64,${r.assets[0].base64}`;
   } catch { return null; }
@@ -27,6 +27,11 @@ export default function Profile() {
   const { theme, toggle, mode } = useTheme();
   const { user, refresh, signOut } = useAuth();
   const router = useRouter();
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.replace("/(auth)/login");
+  };
 
   const [editing, setEditing] = useState(false);
   const [bio, setBio] = useState(user?.bio || "");
@@ -85,7 +90,7 @@ export default function Profile() {
                 <TouchableOpacity testID="toggle-theme-profile" onPress={toggle}>
                   <Ionicons name={mode === "dark" ? "sunny-outline" : "moon-outline"} size={20} color={theme.text} />
                 </TouchableOpacity>
-                <TouchableOpacity testID="logout-profile" onPress={signOut}>
+                <TouchableOpacity testID="logout-profile" onPress={handleSignOut}>
                   <Ionicons name="log-out-outline" size={20} color={theme.text} />
                 </TouchableOpacity>
               </View>
@@ -110,7 +115,7 @@ export default function Profile() {
                 <Text style={{ color: theme.text, fontSize: 22, fontWeight: "900" }}>{user.name}</Text>
                 <Text style={{ color: theme.primary, fontSize: 10, letterSpacing: 2, fontWeight: "700", marginTop: 4 }}>{roleLabel}</Text>
                 <View style={{ flexDirection: "row", gap: 6, marginTop: 6, flexWrap: "wrap" }}>
-                  <Badge text={user.kyc_status.toUpperCase()} color={user.kyc_status === "approved" ? theme.secondary : theme.warning} />
+                  <Badge text={(user.kyc_status || "PENDING").toUpperCase()} color={user.kyc_status === "approved" ? theme.secondary : theme.warning} />
                   {user.subscription?.tier === "pro" ? <Badge text="PRO" color={theme.secondary} /> : null}
                 </View>
               </View>
@@ -136,7 +141,7 @@ export default function Profile() {
                   <Field label="Bio" value={user.bio || "—"} />
                   <Field label="Sector" value={user.sector || "—"} />
                   {user.role !== "student" && <Field label="Company" value={user.company_name || "—"} />}
-                  {user.role === "investor" && <Field label="Investment Amount" value={user.investment_amount ? `₹${user.investment_amount.toLocaleString("en-IN")}` : "—"} />}
+                  {user.role === "investor" && <Field label="Investment Amount" value={user.investment_amount ? `₹${Number(user.investment_amount).toLocaleString("en-IN")}` : "—"} />}
                   <Field label="Website" value={user.website || "—"} />
                   <Field label="LinkedIn" value={user.linkedin || "—"} />
                 </View>

@@ -14,7 +14,8 @@ import { useAuth } from "@/src/context/AuthContext";
 export default function Signup() {
   const { theme } = useTheme();
   const router = useRouter();
-  const { role } = useLocalSearchParams<{ role: string }>();
+  const params = useLocalSearchParams();
+  const role = Array.isArray(params.role) ? params.role[0] : params.role;
   const { signUp } = useAuth();
 
   const [email, setEmail] = useState("");

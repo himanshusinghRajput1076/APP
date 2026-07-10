@@ -36,7 +36,7 @@ export function Btn({
   iconLeft,
 }: {
   title: string;
-  onPress: () => void;
+  onPress: (...args: any[]) => void;
   variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
   loading?: boolean;
   disabled?: boolean;

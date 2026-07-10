@@ -20,7 +20,7 @@ async function pickImageBase64(): Promise<string | null> {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) return null;
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: "images" as any,
       quality: 0.6,
       base64: true,
     });
@@ -76,6 +76,7 @@ export default function KYCScreen() {
         address: address || undefined,
       });
       await refresh();
+      setLoading(false);
       setShowConfetti(true);
       setTimeout(() => router.replace("/(tabs)/home"), 1600);
     } catch (e: any) {

@@ -2,7 +2,7 @@
  * Digital ID Card — futuristic glassmorphic card with QR.
  */
 import React, { useEffect, useState } from "react";
-import { View, Text, ScrollView, TouchableOpacity, Image, Dimensions } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, Image, Dimensions, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -103,7 +103,7 @@ export default function IdCard() {
                 <View style={{ flexDirection: "row", gap: 20 }}>
                   <View>
                     <Text style={{ color: theme.textFaint, fontSize: 7, letterSpacing: 1 }}>MEMBER ID</Text>
-                    <Text style={{ color: theme.text, fontFamily: "Courier", fontSize: 11, marginTop: 2, fontWeight: "700" }}>{card.member_id}</Text>
+                    <Text style={{ color: theme.text, fontFamily: Platform.OS === "ios" ? "Courier" : "monospace", fontSize: 11, marginTop: 2, fontWeight: "700" }}>{card.member_id}</Text>
                   </View>
                   <View>
                     <Text style={{ color: theme.textFaint, fontSize: 7, letterSpacing: 1 }}>KYC</Text>

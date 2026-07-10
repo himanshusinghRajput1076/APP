@@ -97,7 +97,7 @@ export default function Support() {
                 <Card key={t.id}>
                   <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                     <Text style={{ color: theme.text, fontWeight: "700", flex: 1 }} numberOfLines={1}>{t.subject}</Text>
-                    <Badge text={t.status.toUpperCase()} color={t.status === "open" ? theme.warning : theme.secondary} />
+                    <Badge text={(t.status || "OPEN").toUpperCase()} color={t.status === "open" ? theme.warning : theme.secondary} />
                   </View>
                   <Text style={{ color: theme.textMuted, marginTop: 6, fontSize: 12 }}>{t.category} · {new Date(t.created_at).toLocaleDateString()}</Text>
                   <Text style={{ color: theme.textMuted, marginTop: 6, fontSize: 13 }} numberOfLines={2}>{t.message}</Text>

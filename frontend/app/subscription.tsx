@@ -71,7 +71,6 @@ export default function Subscription() {
       await refresh();
       setSuccess(true);
     } catch (e: any) {
-       
       console.log("pay error", e?.response?.data);
     } finally {
       setPaying(false);

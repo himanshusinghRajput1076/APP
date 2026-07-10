@@ -138,7 +138,7 @@ function ProfileCard({ profile, onPress }: { profile: any; onPress: () => void }
             </Text>
             {profile.role === "investor" && profile.investment_amount ? (
               <Text style={{ color: theme.secondary, fontSize: 13, fontWeight: "700", marginTop: 4 }}>
-                Ticket: ₹{profile.investment_amount.toLocaleString("en-IN")}
+                Ticket: ₹{Number(profile.investment_amount).toLocaleString("en-IN")}
               </Text>
             ) : null}
           </View>

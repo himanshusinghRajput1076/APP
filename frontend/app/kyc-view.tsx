@@ -24,7 +24,7 @@ export default function KYCView() {
 
   if (!user) return null;
 
-  const status = user.kyc_status;
+  const status = user.kyc_status || "pending";
   const color = status === "approved" ? theme.secondary : status === "rejected" ? theme.error : theme.warning;
 
   return (
@@ -54,7 +54,7 @@ export default function KYCView() {
               <Text style={{ ...typography.caption, color: theme.textMuted }}>SUBMITTED DETAILS</Text>
               <View style={{ marginTop: 12, gap: 8 }}>
                 <Row label="PAN" value={kyc.kyc.pan} />
-                <Row label="Aadhar" value={kyc.kyc.aadhar?.replace(/(\d{4})(\d{4})/, "XXXX XXXX")} />
+                <Row label="Aadhar" value={kyc.kyc.aadhar ? `XXXX XXXX ${kyc.kyc.aadhar.slice(-4)}` : "—"} />
                 <Row label="Mobile" value={kyc.kyc.mobile} />
                 <Row label="Institution" value={kyc.kyc.college_or_school_name || "—"} />
               </View>

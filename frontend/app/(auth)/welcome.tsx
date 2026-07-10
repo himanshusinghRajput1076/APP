@@ -55,7 +55,7 @@ export default function Welcome() {
           </View>
 
           <Text style={{ ...typography.caption, color: theme.primary, marginBottom: 8 }}>THE STARTUP ECOSYSTEM · MADE IN INDIA</Text>
-          <Text style={{ ...typography.h1, color: theme.text, fontSize: 42, lineHeight: 46 }}>Where India&apos;s{"\n"}next unicorn{"\n"}starts.</Text>
+          <Text style={{ ...typography.h1, color: theme.text, fontSize: 42, lineHeight: 46 }}>Where India{"'"}s{"\n"}next unicorn{"\n"}starts.</Text>
           <Text style={{ ...typography.body, color: theme.textMuted, marginTop: 16 }}>
             Connect Future Founders, Future Partners, and Growing Startups on one futuristic platform.
           </Text>

@@ -2,6 +2,8 @@
  * IDEACON Theme - Futuristic Saffron/Green with light/dark modes.
  * Based on design_guidelines.json.
  */
+import { Platform } from "react-native";
+
 export type ThemeMode = "dark" | "light";
 
 export const darkTheme = {
@@ -73,5 +75,5 @@ export const typography = {
   bodyBold: { fontSize: 15, fontWeight: "600" as const, lineHeight: 22 },
   small: { fontSize: 13, fontWeight: "400" as const, lineHeight: 18 },
   caption: { fontSize: 11, fontWeight: "500" as const, letterSpacing: 2, textTransform: "uppercase" as const },
-  mono: { fontSize: 13, fontFamily: "Courier" as const, letterSpacing: 0.5 },
+  mono: { fontSize: 13, fontFamily: Platform.OS === "ios" ? ("Courier" as const) : ("monospace" as const), letterSpacing: 0.5 },
 };
