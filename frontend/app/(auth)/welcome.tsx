@@ -1,7 +1,7 @@
 /**
  * Welcome / Sign-in landing screen with hero imagery.
  */
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, Dimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -10,6 +10,7 @@ import { useTheme } from "@/src/theme/ThemeProvider";
 import { Btn } from "@/src/components/ui";
 import { spacing, typography } from "@/src/theme/tokens";
 import { Ionicons } from "@expo/vector-icons";
+import { api } from "@/src/api/client";
 
 const { height } = Dimensions.get("window");
 
@@ -18,6 +19,12 @@ const HERO = "https://images.unsplash.com/photo-1526289034009-0240ddb68ce3?crop=
 export default function Welcome() {
   const router = useRouter();
   const { theme, toggle, mode } = useTheme();
+
+  const [settings, setSettings] = useState<any>(null);
+
+  useEffect(() => {
+    api.get("/settings/public").then(r => setSettings(r.data)).catch(() => {});
+  }, []);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -36,10 +43,14 @@ export default function Welcome() {
       <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
         <View style={{ flexDirection: "row", justifyContent: "space-between", padding: spacing.lg }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <View style={{ width: 28, height: 28, backgroundColor: theme.primary, alignItems: "center", justifyContent: "center" }}>
-              <Text style={{ color: "#050505", fontWeight: "900" }}>I</Text>
-            </View>
-            <Text style={{ color: theme.text, fontWeight: "900", letterSpacing: 3 }}>IDEACON</Text>
+            {settings?.company_logo ? (
+              <Image source={{ uri: settings.company_logo }} style={{ width: 28, height: 28, borderRadius: 4 }} resizeMode="contain" />
+            ) : (
+              <View style={{ width: 28, height: 28, backgroundColor: theme.primary, alignItems: "center", justifyContent: "center" }}>
+                <Text style={{ color: "#050505", fontWeight: "900" }}>I</Text>
+              </View>
+            )}
+            <Text style={{ color: theme.text, fontWeight: "900", letterSpacing: 3 }}>{settings?.company_name || "IDEACON"}</Text>
           </View>
           <TouchableOpacity onPress={toggle} testID="theme-toggle-btn" style={{ width: 38, height: 38, borderWidth: 1, borderColor: theme.border, backgroundColor: `${theme.bg}88`, alignItems: "center", justifyContent: "center" }}>
             <Ionicons name={mode === "dark" ? "sunny-outline" : "moon-outline"} size={18} color={theme.text} />

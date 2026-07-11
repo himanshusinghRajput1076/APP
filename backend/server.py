@@ -51,12 +51,27 @@ ROLE_ADMIN = "admin"
 ALL_ROLES = {ROLE_STUDENT, ROLE_INVESTOR, ROLE_GROWING, ROLE_ADMIN}
 
 # Subscription plans (amount in paise for razorpay compatibility)
-PLANS = {
-    "student_basic": {"role": ROLE_STUDENT, "tier": "basic", "amount": 20500, "credits": 50, "limit": 10, "days": 30, "ignite_tokens": 5},
-    "student_pro": {"role": ROLE_STUDENT, "tier": "pro", "amount": 54900, "credits": 150, "limit": 30, "days": 30, "ignite_tokens": 20},
-    "investor_basic": {"role": ROLE_INVESTOR, "tier": "basic", "amount": 54900, "credits": 150, "limit": 50, "days": 30, "ignite_tokens": 50},
-    "startup_basic": {"role": ROLE_GROWING, "tier": "basic", "amount": 54900, "credits": 150, "limit": 40, "days": 30, "ignite_tokens": 15},
-    "startup_pro": {"role": ROLE_GROWING, "tier": "pro", "amount": 74900, "credits": 250, "limit": 60, "days": 30, "ignite_tokens": 30},
+DEFAULT_PLANS = {
+    "student_basic": {
+        "role": ROLE_STUDENT, "tier": "basic", "amount": 20500, "credits": 50, "limit": 10, "days": 30, "ignite_tokens": 5,
+        "name": "Founder Basic", "features": ["10 investor profiles", "Unlimited pitching", "In-app chat", "Digital ID Card", "40+ sector browse"]
+    },
+    "student_pro": {
+        "role": ROLE_STUDENT, "tier": "pro", "amount": 54900, "credits": 150, "limit": 30, "days": 30, "ignite_tokens": 20,
+        "name": "Founder Pro", "features": ["30 investor profiles", "Priority pitch review", "1-on-1 mentorship sessions", "Pro Digital ID", "Company setup assist", "End-to-end fundraising help"]
+    },
+    "investor_basic": {
+        "role": ROLE_INVESTOR, "tier": "basic", "amount": 54900, "credits": 150, "limit": 50, "days": 30, "ignite_tokens": 50,
+        "name": "Partner Basic", "features": ["55 founder profiles", "Sector-based discovery", "In-app chat", "Pro Digital ID", "40+ sector filters"]
+    },
+    "startup_basic": {
+        "role": ROLE_GROWING, "tier": "basic", "amount": 54900, "credits": 150, "limit": 40, "days": 30, "ignite_tokens": 15,
+        "name": "Startup Basic", "features": ["40 investor profiles", "Company pitch feed", "In-app chat", "Digital ID Card", "Growth analytics"]
+    },
+    "startup_pro": {
+        "role": ROLE_GROWING, "tier": "pro", "amount": 74900, "credits": 250, "limit": 60, "days": 30, "ignite_tokens": 30,
+        "name": "Startup Pro", "features": ["60 investor profiles", "Priority visibility", "Investment intro help", "End-to-end services", "Compliance assist", "Pro Digital ID"]
+    },
 }
 
 REFERRAL_BONUS_CREDITS = 100  # both referrer & referee get this on successful subscription
@@ -345,19 +360,23 @@ if USE_SQLITE:
 
 
         async def distinct(self, key, q=None):
-            docs = await self.find(q or {}, None).to_list(length=10000)
-            seen_prims = set()
-            values = []
-            for doc in docs:
-                value = doc.get(key)
-                if isinstance(value, (dict, list)):
-                    if value not in values:
-                        values.append(value)
-                elif value not in seen_prims:
-                    seen_prims.add(value)
-                    values.append(value)
-                    values.append(value)
-            return values
+            params = {"collection": self.table}
+            where = self._build_where(q, params)
+            sql = sql_text(f"SELECT DISTINCT json_extract(doc, '$.{key}') FROM docs WHERE {' AND '.join(where)}")
+            with engine.connect() as conn:
+                res = conn.execute(sql, params).fetchall()
+                values = []
+                for r in res:
+                    val = r[0]
+                    if val is not None:
+                        if isinstance(val, str) and (val.startswith("{") or val.startswith("[")):
+                            try:
+                                val = json.loads(val)
+                            except Exception:
+                                pass
+                        values.append(val)
+                return values
+
 
         def aggregate(self, pipeline):
             with engine.connect() as conn:
@@ -501,6 +520,8 @@ if USE_SQLITE:
     support_c = _SqliteCollection("support")
     payments_c = _SqliteCollection("payments")
     credits_c = _SqliteCollection("credits")
+    settings_c = _SqliteCollection("settings")
+    plans_c = _SqliteCollection("plans")
 else:
     mongo_client: AsyncIOMotorClient = AsyncIOMotorClient(MONGO_URL)
     db = mongo_client[DB_NAME]
@@ -515,6 +536,38 @@ else:
     support_c = db["support"]
     payments_c = db["payments"]
     credits_c = db["credits"]
+    settings_c = db["settings"]
+    plans_c = db["plans"]
+
+
+DEFAULT_SETTINGS = {
+    "id": "global",
+    "company_name": "IDEACON",
+    "company_logo": "",  # Empty logo means default UI branding
+    "bank_details": {
+        "account_name": "IDEACON Technologies Pvt Ltd",
+        "bank_name": "ICICI Bank",
+        "account_number": "123456789012",
+        "ifsc_code": "ICIC0001234",
+    },
+    "upi_id": "ideacon@icici",
+    "qr_code_url": "",  # Empty means auto-generate QR from UPI ID
+}
+
+async def get_plans_dict():
+    plans_list = await plans_c.find({}).to_list(length=100)
+    if not plans_list:
+        for pid, p in DEFAULT_PLANS.items():
+            await plans_c.insert_one({"id": pid, **p})
+        plans_list = await plans_c.find({}).to_list(length=100)
+    return {p["id"]: {k: v for k, v in p.items() if k != "_id"} for p in plans_list}
+
+async def get_settings():
+    doc = await settings_c.find_one({"id": "global"})
+    if not doc:
+        await settings_c.insert_one(DEFAULT_SETTINGS)
+        doc = await settings_c.find_one({"id": "global"})
+    return doc
 
 
 async def seed_admin():
@@ -550,6 +603,8 @@ async def lifespan(app: FastAPI):
         await users_c.create_index("id", unique=True)
         await messages_c.create_index([("chat_id", 1), ("created_at", 1)])
     await seed_admin()
+    await get_plans_dict()
+    await get_settings()
     yield
     if not USE_SQLITE:
         mongo_client.close()
@@ -564,7 +619,16 @@ api = APIRouter(prefix="/api")
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=["http://localhost:8081", "http://localhost:3000", "http://localhost:8000"], # specific origins for security
+    allow_origins=[
+        "http://localhost:8081",
+        "http://localhost:3000",
+        "http://localhost:8000",
+        "http://10.25.54.44:8000",
+        "http://10.25.54.44:8081",
+        "https://plan-b-ee2d2.web.app",
+        "https://plan-b-ee2d2.firebaseapp.com",
+    ],
+    allow_origin_regex=r"https://.*\.serveousercontent\.com|https://.*\.lhr\.life",  # tunnel origins
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -1011,15 +1075,17 @@ async def get_achievements(current: Dict[str, Any] = Depends(get_current_user)):
 @api.get("/payment/plans")
 async def get_plans(current: Dict[str, Any] = Depends(get_current_user)):
     """Return plans applicable to current user's role."""
+    plans_dict = await get_plans_dict()
     plans = []
-    for pid, p in PLANS.items():
-        if p["role"] == current["role"] or current["role"] == ROLE_ADMIN:
+    for pid, p in plans_dict.items():
+        if p.get("role") == current["role"] or current["role"] == ROLE_ADMIN:
             plans.append({"id": pid, **p, "amount_rupees": p["amount"] / 100})
     return {"plans": plans, "razorpay_key_id": RAZORPAY_KEY_ID, "mode": PAYMENT_MODE}
 
 @api.post("/payment/create-order")
 async def create_order(req: PaymentOrderRequest, current: Dict[str, Any] = Depends(get_current_user)):
-    plan = PLANS.get(req.plan_id)
+    plans_dict = await get_plans_dict()
+    plan = plans_dict.get(req.plan_id)
     if not plan:
         raise HTTPException(400, "Invalid plan")
     if plan["role"] != current["role"] and current["role"] != ROLE_ADMIN:
@@ -1074,7 +1140,8 @@ async def verify_payment(req: PaymentVerifyRequest, current: Dict[str, Any] = De
     if order["status"] == "success":
         raise HTTPException(400, "Order already processed")
 
-    plan = PLANS[order["plan_id"]]
+    plans_dict = await get_plans_dict()
+    plan = plans_dict[order["plan_id"]]
     verified = False
 
     if PAYMENT_MODE == "live" and req.signature:
@@ -1466,6 +1533,127 @@ async def admin_toggle_active(user_id: str):
     new_active = not u.get("active", True)
     await users_c.update_one({"id": user_id}, {"$set": {"active": new_active}})
     return {"active": new_active}
+
+
+# --- Settings / Branding / Plans / Custom User edit ---
+
+@api.get("/settings/public")
+async def public_settings():
+    settings = await get_settings()
+    return {
+        "company_name": settings.get("company_name", "IDEACON"),
+        "company_logo": settings.get("company_logo", ""),
+        "bank_details": settings.get("bank_details", {}),
+        "upi_id": settings.get("upi_id", ""),
+        "qr_code_url": settings.get("qr_code_url", ""),
+    }
+
+class AdminSettingsUpdateRequest(BaseModel):
+    company_name: Optional[str] = None
+    company_logo: Optional[str] = None
+    bank_details: Optional[dict] = None
+    upi_id: Optional[str] = None
+    qr_code_url: Optional[str] = None
+
+@api.put("/admin/settings", dependencies=[Depends(require_roles(ROLE_ADMIN))])
+async def admin_update_settings(req: AdminSettingsUpdateRequest):
+    update_data = {}
+    if req.company_name is not None:
+        update_data["company_name"] = req.company_name
+    if req.company_logo is not None:
+        update_data["company_logo"] = req.company_logo
+    if req.bank_details is not None:
+        update_data["bank_details"] = req.bank_details
+    if req.upi_id is not None:
+        update_data["upi_id"] = req.upi_id
+    if req.qr_code_url is not None:
+        update_data["qr_code_url"] = req.qr_code_url
+    
+    await settings_c.update_one({"id": "global"}, {"$set": update_data})
+    return {"status": "ok", "settings": await get_settings()}
+
+@api.get("/admin/plans", dependencies=[Depends(require_roles(ROLE_ADMIN))])
+async def admin_get_plans():
+    plans_dict = await get_plans_dict()
+    return {"plans": [{"id": pid, **p} for pid, p in plans_dict.items()]}
+
+class AdminPlanUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    amount: Optional[int] = None
+    credits: Optional[int] = None
+    limit: Optional[int] = None
+    days: Optional[int] = None
+    ignite_tokens: Optional[int] = None
+    features: Optional[List[str]] = None
+
+@api.put("/admin/plans/{plan_id}", dependencies=[Depends(require_roles(ROLE_ADMIN))])
+async def admin_update_plan(plan_id: str, req: AdminPlanUpdateRequest):
+    plans_dict = await get_plans_dict()
+    if plan_id not in plans_dict:
+        raise HTTPException(404, "Plan not found")
+    
+    update_data = {}
+    if req.name is not None:
+        update_data["name"] = req.name
+    if req.amount is not None:
+        update_data["amount"] = req.amount
+    if req.credits is not None:
+        update_data["credits"] = req.credits
+    if req.limit is not None:
+        update_data["limit"] = req.limit
+    if req.days is not None:
+        update_data["days"] = req.days
+    if req.ignite_tokens is not None:
+        update_data["ignite_tokens"] = req.ignite_tokens
+    if req.features is not None:
+        update_data["features"] = req.features
+        
+    await plans_c.update_one({"id": plan_id}, {"$set": update_data})
+    return {"status": "ok", "plan": {**plans_dict[plan_id], **update_data, "id": plan_id}}
+
+class AdminUserUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    credits: Optional[int] = None
+    active: Optional[bool] = None
+    kyc_status: Optional[str] = None
+    subscription: Optional[dict] = None  # None or {"plan_id": str, "expires_at": str}
+
+@api.put("/admin/users/{user_id}", dependencies=[Depends(require_roles(ROLE_ADMIN))])
+async def admin_update_user(user_id: str, req: AdminUserUpdateRequest):
+    user = await users_c.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(404, "User not found")
+        
+    update_data = {}
+    if req.name is not None:
+        update_data["name"] = req.name
+    if req.email is not None:
+        # Check uniqueness if changed
+        if req.email != user["email"]:
+            exists = await users_c.find_one({"email": req.email})
+            if exists:
+                raise HTTPException(400, "Email already taken")
+        update_data["email"] = req.email
+    if req.role is not None:
+        if req.role not in ALL_ROLES:
+            raise HTTPException(400, "Invalid role")
+        update_data["role"] = req.role
+    if req.credits is not None:
+        update_data["credits"] = req.credits
+    if req.active is not None:
+        update_data["active"] = req.active
+    if req.kyc_status is not None:
+        update_data["kyc_status"] = req.kyc_status
+    if req.subscription is not None:
+        update_data["subscription"] = req.subscription
+    elif req.subscription == {}:
+        update_data["subscription"] = None
+        
+    await users_c.update_one({"id": user_id}, {"$set": update_data})
+    updated = await users_c.find_one({"id": user_id}, {"_id": 0, "hashed_password": 0})
+    return {"status": "ok", "user": updated}
 
 
 # --------------------------------------------------------------------------- #

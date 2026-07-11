@@ -1,8 +1,5 @@
-/**
- * IDEACON Splash / Router — animated logo → redirect based on auth state.
- */
-import React, { useEffect } from "react";
-import { View, Text, StyleSheet, Dimensions } from "react-native";
+import React, { useEffect, useState } from "react";
+import { View, Text, StyleSheet, Dimensions, Image } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, {
   useSharedValue,
@@ -18,6 +15,7 @@ import { useAuth } from "@/src/context/AuthContext";
 import { useTheme } from "@/src/theme/ThemeProvider";
 import { storage } from "@/src/utils/storage";
 import { ONBOARDING_KEY } from "@/app/onboarding";
+import { api } from "@/src/api/client";
 
 const { width } = Dimensions.get("window");
 
@@ -26,11 +24,17 @@ export default function Splash() {
   const { user, loading } = useAuth();
   const { theme } = useTheme();
 
+  const [settings, setSettings] = useState<any>(null);
+
   const scale = useSharedValue(0.6);
   const opacity = useSharedValue(0);
   const glow = useSharedValue(0);
   const letterY = useSharedValue(30);
   const dotOpacity = useSharedValue(0);
+
+  useEffect(() => {
+    api.get("/settings/public").then(r => setSettings(r.data)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     opacity.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) });
@@ -90,17 +94,21 @@ export default function Splash() {
 
       {/* Logo mark */}
       <Animated.View style={[logoStyle, { alignItems: "center" }]}>
-        <View style={[styles.logoBox, { borderColor: theme.primary }]}>
-          <View style={[styles.logoInner, { backgroundColor: theme.primary }]}>
-            <Text style={styles.logoLetter}>I</Text>
+        {settings?.company_logo ? (
+          <Image source={{ uri: settings.company_logo }} style={{ width: 84, height: 84, borderRadius: 12 }} resizeMode="contain" />
+        ) : (
+          <View style={[styles.logoBox, { borderColor: theme.primary }]}>
+            <View style={[styles.logoInner, { backgroundColor: theme.primary }]}>
+              <Text style={styles.logoLetter}>I</Text>
+            </View>
+            <View style={[styles.logoBar, { backgroundColor: theme.secondary }]} />
           </View>
-          <View style={[styles.logoBar, { backgroundColor: theme.secondary }]} />
-        </View>
+        )}
       </Animated.View>
 
       {/* Wordmark */}
       <Animated.View style={[letterStyle, { marginTop: 24, alignItems: "center" }]}>
-        <Text style={[styles.title, { color: theme.text }]}>IDEACON</Text>
+        <Text style={[styles.title, { color: theme.text }]}>{settings?.company_name || "IDEACON"}</Text>
         <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
           <View style={[styles.tickBar, { backgroundColor: theme.primary }]} />
           <Text style={[styles.tagline, { color: theme.textMuted }]}>THE STARTUP ECOSYSTEM</Text>

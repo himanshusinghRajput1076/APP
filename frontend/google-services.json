@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "304231791912",
+    "project_id": "plan-b-a539d",
+    "storage_bucket": "plan-b-a539d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:304231791912:android:4b030b0dee54090fdc641d",
+        "android_client_info": {
+          "package_name": "com.emergent.futurelaunchpad.wb2mxs"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBlF1YiLB3xect2HhPlEA11SnpKJJPDk7s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -14,6 +14,8 @@ import { Confetti } from "@/src/components/Confetti";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/api/client";
 
+import QRCode from "react-native-qrcode-svg";
+
 const PLAN_LABELS: Record<string, { name: string; features: string[] }> = {
   student_basic: {
     name: "Founder Basic",
@@ -45,11 +47,13 @@ export default function Subscription() {
   const [plans, setPlans] = useState<any[]>([]);
   const [paying, setPaying] = useState(false);
   const [selected, setSelected] = useState<any | null>(null);
-  const [payMethod, setPayMethod] = useState<"upi" | "card" | "qr" | null>(null);
+  const [payMethod, setPayMethod] = useState<"upi" | "card" | "qr" | "bank" | null>(null);
   const [success, setSuccess] = useState(false);
+  const [settings, setSettings] = useState<any>(null);
 
   useEffect(() => {
     api.get("/payment/plans").then(r => setPlans(r.data.plans || [])).catch(() => {});
+    api.get("/settings/public").then(r => setSettings(r.data)).catch(() => {});
   }, []);
 
   const startCheckout = (plan: any) => {
@@ -72,6 +76,7 @@ export default function Subscription() {
       setSuccess(true);
     } catch (e: any) {
       console.log("pay error", e?.response?.data);
+      alert("Payment failed: " + (e?.response?.data?.detail || "Unknown error"));
     } finally {
       setPaying(false);
     }
@@ -97,7 +102,7 @@ export default function Subscription() {
             <Card style={{ marginTop: 20, borderColor: theme.secondary }}>
               <Text style={{ ...typography.caption, color: theme.secondary }}>CURRENT PLAN</Text>
               <Text style={{ color: theme.text, fontSize: 20, fontWeight: "800", marginTop: 4 }}>
-                {PLAN_LABELS[user.subscription.plan_id]?.name || user.subscription.plan_id}
+                {user.subscription.plan_id ? (plans.find(p => p.id === user.subscription.plan_id)?.name || PLAN_LABELS[user.subscription.plan_id]?.name || user.subscription.plan_id) : "None"}
               </Text>
               <Text style={{ color: theme.textMuted, fontSize: 12, marginTop: 4 }}>
                 Expires {new Date(user.subscription.expires_at).toLocaleDateString()}
@@ -110,12 +115,15 @@ export default function Subscription() {
               const isPro = p.tier === "pro";
               const meta = PLAN_LABELS[p.id];
               const c = isPro ? theme.secondary : theme.primary;
+              const planName = p.name || meta?.name || p.id;
+              const features = p.features || meta?.features || [];
+
               return (
                 <Card key={p.id} style={{ borderColor: c, borderWidth: isPro ? 2 : 1 }} testID={`plan-${p.id}`}>
                   <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <View style={{ flex: 1 }}>
                       <Badge text={isPro ? "PRO · RECOMMENDED" : "BASIC"} color={c} />
-                      <Text style={{ color: theme.text, fontSize: 22, fontWeight: "900", marginTop: 8 }}>{meta?.name || p.id}</Text>
+                      <Text style={{ color: theme.text, fontSize: 22, fontWeight: "900", marginTop: 8 }}>{planName}</Text>
                     </View>
                     <View style={{ alignItems: "flex-end" }}>
                       <Text style={{ color: theme.textFaint, fontSize: 10, letterSpacing: 1 }}>PER MONTH</Text>
@@ -123,7 +131,7 @@ export default function Subscription() {
                     </View>
                   </View>
                   <View style={{ marginTop: 12, gap: 8 }}>
-                    {(meta?.features || []).map((f, i) => (
+                    {features.map((f: string, i: number) => (
                       <View key={i} style={{ flexDirection: "row", gap: 8, alignItems: "flex-start" }}>
                         <Ionicons name="checkmark-circle" size={14} color={c} style={{ marginTop: 2 }} />
                         <Text style={{ color: theme.textMuted, flex: 1 }}>{f}</Text>
@@ -163,7 +171,7 @@ export default function Subscription() {
                 <View>
                   <Text style={{ color: theme.textMuted, fontSize: 10, letterSpacing: 2 }}>CHECKOUT</Text>
                   <Text style={{ color: theme.text, fontSize: 18, fontWeight: "800", marginTop: 2 }}>
-                    {selected ? PLAN_LABELS[selected.id]?.name : ""}
+                    {selected ? (selected.name || PLAN_LABELS[selected.id]?.name || selected.id) : ""}
                   </Text>
                 </View>
                 <TouchableOpacity testID="close-checkout" onPress={() => setSelected(null)}><Ionicons name="close" size={22} color={theme.text} /></TouchableOpacity>
@@ -178,7 +186,30 @@ export default function Subscription() {
                   <PayMethodOption id="upi" label="UPI" desc="GPay · PhonePe · Paytm · BHIM" icon="phone-portrait" active={payMethod === "upi"} onPress={() => setPayMethod("upi")} />
                   <PayMethodOption id="card" label="Credit / Debit Card" desc="Visa · Mastercard · Rupay" icon="card" active={payMethod === "card"} onPress={() => setPayMethod("card")} />
                   <PayMethodOption id="qr" label="QR Code" desc="Scan with any UPI app" icon="qr-code" active={payMethod === "qr"} onPress={() => setPayMethod("qr")} />
+                  <PayMethodOption id="bank" label="Bank Transfer" desc="IMPS · NEFT · RTGS" icon="business" active={payMethod === "bank"} onPress={() => setPayMethod("bank")} />
                 </View>
+
+                {payMethod === "qr" && settings && (
+                  <Card style={{ marginTop: 16, alignItems: "center", padding: 16 }}>
+                    <Text style={{ color: theme.text, fontWeight: "700", marginBottom: 10 }}>Scan QR to Pay</Text>
+                    {settings.qr_code_url ? (
+                      <Image source={{ uri: settings.qr_code_url }} style={{ width: 150, height: 150, borderRadius: 8 }} resizeMode="contain" />
+                    ) : (
+                      <QRCode value={`upi://pay?pa=${settings.upi_id || "ideacon@icici"}&pn=${settings.company_name || "IDEACON"}&am=${selected?.amount_rupees}&cu=INR`} size={130} backgroundColor="#FFFFFF" color="#050505" />
+                    )}
+                    <Text style={{ color: theme.textMuted, fontSize: 12, marginTop: 10 }}>UPI ID: {settings.upi_id || "ideacon@icici"}</Text>
+                  </Card>
+                )}
+
+                {payMethod === "bank" && settings && settings.bank_details && (
+                  <Card style={{ marginTop: 16, padding: 14 }}>
+                    <Text style={{ color: theme.text, fontWeight: "700", marginBottom: 8 }}>Bank Transfer Details</Text>
+                    <DetailsRow label="Account Name" value={settings.bank_details.account_name || "—"} theme={theme} />
+                    <DetailsRow label="Bank Name" value={settings.bank_details.bank_name || "—"} theme={theme} />
+                    <DetailsRow label="Account Number" value={settings.bank_details.account_number || "—"} theme={theme} />
+                    <DetailsRow label="IFSC Code" value={settings.bank_details.ifsc_code || "—"} theme={theme} />
+                  </Card>
+                )}
 
                 <View style={{ marginTop: 24 }}>
                   <Btn
@@ -205,7 +236,7 @@ export default function Subscription() {
                 </View>
                 <Text style={{ color: theme.text, fontSize: 22, fontWeight: "900", marginTop: 14 }}>Payment Successful</Text>
                 <Text style={{ color: theme.textMuted, marginTop: 6, textAlign: "center" }}>
-                  Welcome to {selected ? PLAN_LABELS[selected.id]?.name : ""}. Credits added, ID upgraded.
+                  Welcome to {selected ? (selected.name || PLAN_LABELS[selected.id]?.name || selected.id) : ""}. Credits added, ID upgraded.
                 </Text>
               </View>
               <View style={{ marginTop: 24, gap: 10 }}>
@@ -243,5 +274,14 @@ function PayMethodOption({ id, label, desc, icon, active, onPress }: any) {
       </View>
       {active ? <Ionicons name="checkmark-circle" size={20} color={theme.primary} /> : <View style={{ width: 18, height: 18, borderWidth: 1, borderColor: theme.border, borderRadius: 9 }} />}
     </TouchableOpacity>
+  );
+}
+
+function DetailsRow({ label, value, theme }: any) {
+  return (
+    <View style={{ flexDirection: "row", justifyContent: "space-between", paddingVertical: 4 }}>
+      <Text style={{ color: theme.textMuted, fontSize: 13 }}>{label}</Text>
+      <Text style={{ color: theme.text, fontWeight: "700", fontSize: 13 }}>{value}</Text>
+    </View>
   );
 }

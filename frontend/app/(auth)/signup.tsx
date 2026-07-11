@@ -15,7 +15,9 @@ export default function Signup() {
   const { theme } = useTheme();
   const router = useRouter();
   const params = useLocalSearchParams();
-  const role = Array.isArray(params.role) ? params.role[0] : params.role;
+  const rawRole = Array.isArray(params.role) ? params.role[0] : params.role;
+  const role: "student" | "investor" | "growing_startup" =
+    (rawRole === "student" || rawRole === "investor" || rawRole === "growing_startup") ? rawRole : "student";
   const { signUp } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -35,9 +37,10 @@ export default function Signup() {
         email: email.trim().toLowerCase(),
         password,
         name: name.trim(),
-        role: (role as any) || "student",
+        role,
         referral_code: referralCode.trim() || undefined,
-      } as any);
+      });
+
       // Redirect to KYC for new users
       router.replace("/(auth)/kyc");
     } catch (e: any) {

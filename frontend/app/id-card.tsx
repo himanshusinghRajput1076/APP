@@ -108,7 +108,7 @@ export default function IdCard() {
                   <View>
                     <Text style={{ color: theme.textFaint, fontSize: 7, letterSpacing: 1 }}>KYC</Text>
                     <Text style={{ color: card.kyc_status === "approved" ? theme.secondary : theme.warning, fontSize: 11, marginTop: 2, fontWeight: "700" }}>
-                      {card.kyc_status?.toUpperCase()}
+                      {card.kyc_status?.toUpperCase() || "PENDING"}
                     </Text>
                   </View>
                 </View>
@@ -137,7 +137,7 @@ export default function IdCard() {
               <Row label="Issued" value={new Date(card.issued_at).toLocaleDateString()} />
               {card.expires_at ? <Row label="Expires" value={new Date(card.expires_at).toLocaleDateString()} /> : null}
               <Row label="Credits" value={String(card.credits)} valueColor={theme.secondary} />
-              <Row label="Tier" value={card.tier?.toUpperCase()} valueColor={isPro ? theme.secondary : theme.primary} />
+              <Row label="Tier" value={card.tier?.toUpperCase() || "BASIC"} valueColor={isPro ? theme.secondary : theme.primary} />
             </View>
           </Card>
 

@@ -170,7 +170,7 @@ export default function Profile() {
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                 <View>
                   <Text style={{ ...typography.caption, color: theme.textMuted }}>KYC STATUS</Text>
-                  <Text style={{ color: theme.text, fontWeight: "700", marginTop: 4 }}>{user.kyc_status.toUpperCase()}</Text>
+                  <Text style={{ color: theme.text, fontWeight: "700", marginTop: 4 }}>{user.kyc_status?.toUpperCase() ?? "UNKNOWN"}</Text>
                 </View>
                 <TouchableOpacity testID="kyc-nav-btn" onPress={() => router.push("/(auth)/kyc")}>
                   <Text style={{ color: theme.primary, fontWeight: "700" }}>{user.kyc_status === "pending" ? "START →" : "UPDATE →"}</Text>

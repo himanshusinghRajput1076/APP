@@ -14,6 +14,7 @@ import { AchievementBadge, AchievementItem } from "@/src/components/AchievementB
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/api/client";
 import { timeGreeting } from "@/src/utils/greeting";
+import { AdBanner } from "@/src/components/AdBanner";
 
 const { width } = Dimensions.get("window");
 
@@ -268,6 +269,7 @@ export default function Home() {
               </Text>
             </Card>
           </View>
+          <AdBanner />
         </ScrollView>
       </SafeAreaView>
     </View>
