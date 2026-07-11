@@ -522,6 +522,8 @@ if USE_SQLITE:
     credits_c = _SqliteCollection("credits")
     settings_c = _SqliteCollection("settings")
     plans_c = _SqliteCollection("plans")
+    pabbly_c = _SqliteCollection("pabbly")
+    seedforge_c = _SqliteCollection("seedforge")
 else:
     mongo_client: AsyncIOMotorClient = AsyncIOMotorClient(MONGO_URL)
     db = mongo_client[DB_NAME]
@@ -538,6 +540,8 @@ else:
     credits_c = db["credits"]
     settings_c = db["settings"]
     plans_c = db["plans"]
+    pabbly_c = db["pabbly"]
+    seedforge_c = db["seedforge"]
 
 
 DEFAULT_SETTINGS = {
@@ -684,6 +688,17 @@ class DigilockerRequest(BaseModel):
     full_name: str
     dob: str
     verified_mobile: str
+
+class PabblyConfigRequest(BaseModel):
+    webhook_url: str
+    events: List[str]
+
+class SeedForgeRoundRequest(BaseModel):
+    round_name: str
+    amount_raised: float
+    valuation: float
+    date: str
+    investors: List[str]
 
 class PortfolioRequest(BaseModel):
     bio: Optional[str] = None
@@ -1687,6 +1702,69 @@ async def admin_update_user(user_id: str, req: AdminUserUpdateRequest):
     await users_c.update_one({"id": user_id}, {"$set": update_data})
     updated = await users_c.find_one({"id": user_id}, {"_id": 0, "hashed_password": 0})
     return {"status": "ok", "user": updated}
+
+
+import httpx
+
+async def trigger_pabbly_webhook(user_id: str, event_name: str, payload: dict):
+    """
+    Checks if the user has a configured Pabbly webhook, and fires it.
+    """
+    config = await pabbly_c.find_one({"user_id": user_id})
+    if config and config.get("webhook_url") and event_name in config.get("events", []):
+        data = {
+            "event": event_name,
+            "user_id": user_id,
+            "timestamp": iso(now_utc()),
+            "data": payload
+        }
+        try:
+            async with httpx.AsyncClient() as client:
+                # We don't await the full response to prevent blocking
+                asyncio.create_task(client.post(config["webhook_url"], json=data, timeout=5.0))
+        except Exception as e:
+            logging.error(f"Pabbly Webhook Error: {e}")
+
+# --------------------------------------------------------------------------- #
+# Pabbly Connect
+# --------------------------------------------------------------------------- #
+@api.get("/pabbly/config")
+async def get_pabbly_config(current: Dict[str, Any] = Depends(get_current_user)):
+    doc = await pabbly_c.find_one({"user_id": current["id"]}, {"_id": 0})
+    return doc or {"user_id": current["id"], "webhook_url": "", "events": []}
+
+@api.post("/pabbly/config")
+async def save_pabbly_config(req: PabblyConfigRequest, current: Dict[str, Any] = Depends(get_current_user)):
+    doc = req.model_dump()
+    doc["user_id"] = current["id"]
+    doc["updated_at"] = iso(now_utc())
+    await pabbly_c.update_one({"user_id": current["id"]}, {"$set": doc}, upsert=True)
+    return {"status": "ok", "message": "Pabbly Configuration Saved"}
+
+
+# --------------------------------------------------------------------------- #
+# SeedForge
+# --------------------------------------------------------------------------- #
+@api.get("/seedforge/rounds")
+async def get_seedforge_rounds(current: Dict[str, Any] = Depends(get_current_user)):
+    doc = await seedforge_c.find_one({"user_id": current["id"]}, {"_id": 0})
+    return doc or {"user_id": current["id"], "rounds": []}
+
+@api.post("/seedforge/rounds")
+async def add_seedforge_round(req: SeedForgeRoundRequest, current: Dict[str, Any] = Depends(get_current_user)):
+    round_doc = req.model_dump()
+    round_doc["id"] = str(uuid.uuid4())
+    round_doc["created_at"] = iso(now_utc())
+    
+    await seedforge_c.update_one(
+        {"user_id": current["id"]},
+        {"$push": {"rounds": round_doc}},
+        upsert=True
+    )
+    # Trigger a webhook if the user has Pabbly configured
+    await trigger_pabbly_webhook(current["id"], "funding_round_added", round_doc)
+    
+    return {"status": "ok", "message": "Funding round added"}
 
 
 # --------------------------------------------------------------------------- #
