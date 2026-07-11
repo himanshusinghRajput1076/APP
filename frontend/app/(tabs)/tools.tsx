@@ -102,7 +102,7 @@ export default function ToolsScreen() {
           onPress={() => setActiveTab("pabbly")}
           style={{
             flex: 1, padding: 12, borderRadius: radius.sm, alignItems: "center",
-            backgroundColor: activeTab === "pabbly" ? theme.secondary : theme.card,
+            backgroundColor: activeTab === "pabbly" ? theme.secondary : theme.surface,
             borderWidth: activeTab === "pabbly" ? 0 : 1, borderColor: theme.border
           }}
         >
@@ -115,7 +115,7 @@ export default function ToolsScreen() {
       <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 100 }}>
         {activeTab === "seedforge" ? (
           <View style={{ gap: 16 }}>
-            <Card style={{ backgroundColor: theme.card, borderColor: theme.border }}>
+            <Card style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 }}>
                 <Ionicons name="pie-chart" size={24} color={theme.primary} />
                 <Text style={{ color: theme.text, fontWeight: "700", fontSize: 18 }}>Add Funding Round</Text>
@@ -123,15 +123,15 @@ export default function ToolsScreen() {
               
               <View style={{ gap: 12 }}>
                 <Input label="Round Name (e.g. Pre-Seed)" value={roundName} onChangeText={setRoundName} />
-                <Input label="Amount Raised (₹)" value={amount} onChangeText={setAmount} keyboardType="numeric" />
-                <Input label="Valuation (₹)" value={valuation} onChangeText={setValuation} keyboardType="numeric" />
+                <Input label="Amount Raised (₹)" value={amount} onChangeText={setAmount} keyboardType="number-pad" />
+                <Input label="Valuation (₹)" value={valuation} onChangeText={setValuation} keyboardType="number-pad" />
                 <Btn title="Save Round" onPress={addRound} loading={seedLoading} />
               </View>
             </Card>
 
             <Text style={{ color: theme.text, fontWeight: "700", fontSize: 18, marginTop: 16 }}>Cap Table History</Text>
             {rounds.map((r, i) => (
-              <Card key={i} style={{ backgroundColor: theme.card, borderColor: theme.border }}>
+              <Card key={i} style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
                 <Text style={{ color: theme.text, fontWeight: "700", fontSize: 16 }}>{r.round_name}</Text>
                 <Text style={{ color: theme.textMuted, marginTop: 4 }}>Raised: ₹{r.amount_raised}</Text>
                 <Text style={{ color: theme.textMuted }}>Valuation: ₹{r.valuation}</Text>
@@ -140,7 +140,7 @@ export default function ToolsScreen() {
           </View>
         ) : (
           <View style={{ gap: 16 }}>
-            <Card style={{ backgroundColor: theme.card, borderColor: theme.border }}>
+            <Card style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 }}>
                 <Ionicons name="flash" size={24} color={theme.secondary} />
                 <Text style={{ color: theme.text, fontWeight: "700", fontSize: 18 }}>Pabbly Connect Webhook</Text>
