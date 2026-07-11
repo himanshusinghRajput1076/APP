@@ -2,14 +2,20 @@ import React, { useState, useEffect } from "react";
 import { View, Text, ScrollView, TextInput, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useTheme } from "@/src/theme/ThemeProvider";
-import { Btn, Card, Input } from "@/src/components/ui";
 import { typography, spacing, radius } from "@/src/theme/tokens";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "@/src/api/client";
+import { useAuth } from "@/src/context/AuthContext";
+import { Btn, Card, Input } from "@/src/components/ui";
 
 export default function ToolsScreen() {
   const { theme } = useTheme();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<"seedforge" | "pabbly">("seedforge");
+  
+  const [sEnabled, setSEnabled] = useState(true);
+  const [pEnabled, setPEnabled] = useState(true);
+  const [subReq, setSubReq] = useState(false);
 
   // Pabbly State
   const [webhookUrl, setWebhookUrl] = useState("");
@@ -28,12 +34,20 @@ export default function ToolsScreen() {
 
   const fetchData = async () => {
     try {
-      const [pabblyRes, seedRes] = await Promise.all([
-        api.get("/pabbly/config"),
-        api.get("/seedforge/rounds")
+      const [pabblyRes, seedRes, settingsRes] = await Promise.all([
+        api.get("/pabbly/config").catch(() => ({ data: {} })),
+        api.get("/seedforge/rounds").catch(() => ({ data: {} })),
+        api.get("/settings/public").catch(() => ({ data: {} }))
       ]);
       setWebhookUrl(pabblyRes.data?.webhook_url || "");
       setRounds(seedRes.data?.rounds || []);
+      
+      const sData = settingsRes.data;
+      if (sData) {
+        setSEnabled(sData.seedforge_enabled ?? true);
+        setPEnabled(sData.pabbly_enabled ?? true);
+        setSubReq(sData.tools_subscription_required ?? false);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -113,8 +127,27 @@ export default function ToolsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: spacing.md, paddingBottom: 100 }}>
-        {activeTab === "seedforge" ? (
-          <View style={{ gap: 16 }}>
+        
+        {/* Lockout Screen */}
+        {subReq && !user?.subscription?.plan_id && (
+          <View style={{ padding: spacing.xl, alignItems: "center", justifyContent: "center", marginTop: 40 }}>
+            <Ionicons name="lock-closed" size={64} color={theme.textMuted} />
+            <Text style={{ ...typography.h2, color: theme.text, textAlign: "center", marginTop: 16 }}>Premium Feature</Text>
+            <Text style={{ ...typography.body, color: theme.textMuted, textAlign: "center", marginTop: 8 }}>
+              You need an active subscription plan to use external integrations like SeedForge and Pabbly.
+            </Text>
+          </View>
+        )}
+        
+        {!subReq || user?.subscription?.plan_id ? (
+          <>
+            {activeTab === "seedforge" && (
+              !sEnabled ? (
+                <View style={{ padding: spacing.xl, alignItems: "center", marginTop: 20 }}>
+                  <Text style={{ ...typography.body, color: theme.textMuted }}>SeedForge is currently disabled by Admin.</Text>
+                </View>
+              ) : (
+                <View style={{ gap: 16 }}>
             <Card style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 }}>
                 <Ionicons name="pie-chart" size={24} color={theme.primary} />
@@ -138,8 +171,16 @@ export default function ToolsScreen() {
               </Card>
             ))}
           </View>
-        ) : (
-          <View style={{ gap: 16 }}>
+              )
+            )}
+            
+            {activeTab === "pabbly" && (
+              !pEnabled ? (
+                <View style={{ padding: spacing.xl, alignItems: "center", marginTop: 20 }}>
+                  <Text style={{ ...typography.body, color: theme.textMuted }}>Pabbly Webhooks are currently disabled by Admin.</Text>
+                </View>
+              ) : (
+                <View style={{ gap: 16 }}>
             <Card style={{ backgroundColor: theme.surface, borderColor: theme.border }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 16 }}>
                 <Ionicons name="flash" size={24} color={theme.secondary} />
@@ -155,10 +196,13 @@ export default function ToolsScreen() {
                 onChangeText={setWebhookUrl} 
                 placeholder="https://connect.pabbly.com/workflow/sendwebhookdata/..." 
               />
-              <Btn title="Save Configuration" onPress={savePabbly} loading={pabblyLoading} style={{ backgroundColor: theme.secondary, marginTop: 12 }} />
-            </Card>
-          </View>
-        )}
+                  <Btn title="Save Configuration" onPress={savePabbly} loading={pabblyLoading} style={{ backgroundColor: theme.secondary, marginTop: 12 }} />
+                </Card>
+              </View>
+              )
+            )}
+          </>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );

@@ -2,7 +2,7 @@
  * Admin Dashboard — analytics + user management + plans + branding.
  */
 import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Modal, Image, Alert } from "react-native";
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Modal, Image, Alert, Switch } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/theme/ThemeProvider";
@@ -57,6 +57,11 @@ export default function AdminDashboard() {
   const [bankAccNo, setBankAccNo] = useState("");
   const [bankIfsc, setBankIfsc] = useState("");
 
+  // Tools & Integrations settings
+  const [seedforgeEnabled, setSeedforgeEnabled] = useState(true);
+  const [pabblyEnabled, setPabblyEnabled] = useState(true);
+  const [toolsSubReq, setToolsSubReq] = useState(false);
+
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -81,6 +86,9 @@ export default function AdminDashboard() {
         setBankAccNo(sData.bank_details.account_number || "");
         setBankIfsc(sData.bank_details.ifsc_code || "");
       }
+      setSeedforgeEnabled(sData.seedforge_enabled ?? true);
+      setPabblyEnabled(sData.pabbly_enabled ?? true);
+      setToolsSubReq(sData.tools_subscription_required ?? false);
     } catch { /* ignore */ }
     setRefreshing(false);
   }, [filter]);
@@ -195,6 +203,9 @@ export default function AdminDashboard() {
           account_number: bankAccNo,
           ifsc_code: bankIfsc,
         },
+        seedforge_enabled: seedforgeEnabled,
+        pabbly_enabled: pabblyEnabled,
+        tools_subscription_required: toolsSubReq
       });
       load();
       Alert.alert("Success", "Global branding and payment settings saved.");
@@ -325,6 +336,26 @@ export default function AdminDashboard() {
               <Input label="Bank Name" value={bankName} onChangeText={setBankName} />
               <Input label="Account Number" value={bankAccNo} onChangeText={setBankAccNo} keyboardType="number-pad" />
               <Input label="IFSC Code" value={bankIfsc} onChangeText={setBankIfsc} autoCapitalize="characters" />
+
+              <Text style={{ ...typography.caption, color: theme.textMuted, marginTop: 10 }}>INTEGRATIONS & TOOLS</Text>
+                
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: theme.surface, padding: spacing.md, borderRadius: 8, borderColor: theme.border, borderWidth: 1 }}>
+                <Text style={{ color: theme.text, fontWeight: "600" }}>Enable SeedForge Global</Text>
+                <Switch value={seedforgeEnabled} onValueChange={setSeedforgeEnabled} />
+              </View>
+              
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: theme.surface, padding: spacing.md, borderRadius: 8, borderColor: theme.border, borderWidth: 1 }}>
+                <Text style={{ color: theme.text, fontWeight: "600" }}>Enable Pabbly Webhooks Global</Text>
+                <Switch value={pabblyEnabled} onValueChange={setPabblyEnabled} />
+              </View>
+
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", backgroundColor: theme.surface, padding: spacing.md, borderRadius: 8, borderColor: theme.border, borderWidth: 1 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: theme.text, fontWeight: "600" }}>Require Premium for Tools</Text>
+                  <Text style={{ color: theme.textMuted, fontSize: 12 }}>Users must purchase a subscription to use tools.</Text>
+                </View>
+                <Switch value={toolsSubReq} onValueChange={setToolsSubReq} />
+              </View>
 
               <Btn title="Save Settings" onPress={saveGlobalSettings} variant="primary" style={{ marginTop: 10 }} />
             </View>

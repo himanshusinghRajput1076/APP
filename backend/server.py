@@ -556,6 +556,9 @@ DEFAULT_SETTINGS = {
     },
     "upi_id": "ideacon@icici",
     "qr_code_url": "",  # Empty means auto-generate QR from UPI ID
+    "seedforge_enabled": True,
+    "pabbly_enabled": True,
+    "tools_subscription_required": False,
 }
 
 async def get_plans_dict():
@@ -1602,6 +1605,9 @@ class AdminSettingsUpdateRequest(BaseModel):
     bank_details: Optional[dict] = None
     upi_id: Optional[str] = None
     qr_code_url: Optional[str] = None
+    seedforge_enabled: Optional[bool] = None
+    pabbly_enabled: Optional[bool] = None
+    tools_subscription_required: Optional[bool] = None
 
 @api.put("/admin/settings", dependencies=[Depends(require_roles(ROLE_ADMIN))])
 async def admin_update_settings(req: AdminSettingsUpdateRequest):
@@ -1616,6 +1622,12 @@ async def admin_update_settings(req: AdminSettingsUpdateRequest):
         update_data["upi_id"] = req.upi_id
     if req.qr_code_url is not None:
         update_data["qr_code_url"] = req.qr_code_url
+    if req.seedforge_enabled is not None:
+        update_data["seedforge_enabled"] = req.seedforge_enabled
+    if req.pabbly_enabled is not None:
+        update_data["pabbly_enabled"] = req.pabbly_enabled
+    if req.tools_subscription_required is not None:
+        update_data["tools_subscription_required"] = req.tools_subscription_required
     
     await settings_c.update_one({"id": "global"}, {"$set": update_data})
     return {"status": "ok", "settings": await get_settings()}
@@ -1728,13 +1740,23 @@ async def trigger_pabbly_webhook(user_id: str, event_name: str, payload: dict):
 # --------------------------------------------------------------------------- #
 # Pabbly Connect
 # --------------------------------------------------------------------------- #
+async def check_tool_access(current: Dict[str, Any], tool_name: str):
+    settings = await get_settings()
+    if not settings.get(f"{tool_name}_enabled", True):
+        raise HTTPException(403, f"{tool_name} is currently disabled")
+    if settings.get("tools_subscription_required", False):
+        if not current.get("subscription", {}).get("plan_id"):
+            raise HTTPException(403, "Premium subscription required for Tools")
+
 @api.get("/pabbly/config")
 async def get_pabbly_config(current: Dict[str, Any] = Depends(get_current_user)):
+    await check_tool_access(current, "pabbly")
     doc = await pabbly_c.find_one({"user_id": current["id"]}, {"_id": 0})
     return doc or {"user_id": current["id"], "webhook_url": "", "events": []}
 
 @api.post("/pabbly/config")
 async def save_pabbly_config(req: PabblyConfigRequest, current: Dict[str, Any] = Depends(get_current_user)):
+    await check_tool_access(current, "pabbly")
     doc = req.model_dump()
     doc["user_id"] = current["id"]
     doc["updated_at"] = iso(now_utc())
@@ -1747,11 +1769,13 @@ async def save_pabbly_config(req: PabblyConfigRequest, current: Dict[str, Any] =
 # --------------------------------------------------------------------------- #
 @api.get("/seedforge/rounds")
 async def get_seedforge_rounds(current: Dict[str, Any] = Depends(get_current_user)):
+    await check_tool_access(current, "seedforge")
     doc = await seedforge_c.find_one({"user_id": current["id"]}, {"_id": 0})
     return doc or {"user_id": current["id"], "rounds": []}
 
 @api.post("/seedforge/rounds")
 async def add_seedforge_round(req: SeedForgeRoundRequest, current: Dict[str, Any] = Depends(get_current_user)):
+    await check_tool_access(current, "seedforge")
     round_doc = req.model_dump()
     round_doc["id"] = str(uuid.uuid4())
     round_doc["created_at"] = iso(now_utc())
