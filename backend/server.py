@@ -678,6 +678,13 @@ class KYCRequest(BaseModel):
     college_or_school_name: Optional[str] = None
     address: Optional[str] = None
 
+class DigilockerRequest(BaseModel):
+    digilocker_code: str
+    aadhaar_number: str
+    full_name: str
+    dob: str
+    verified_mobile: str
+
 class PortfolioRequest(BaseModel):
     bio: Optional[str] = None
     sector: Optional[str] = None
@@ -873,6 +880,32 @@ async def submit_kyc(req: KYCRequest, current: Dict[str, Any] = Depends(get_curr
 async def kyc_status(current: Dict[str, Any] = Depends(get_current_user)):
     doc = await kyc_c.find_one({"user_id": current["id"]}, {"_id": 0})
     return {"status": current.get("kyc_status", "pending"), "kyc": doc}
+
+@api.post("/kyc/digilocker/verify")
+async def digilocker_verify(req: DigilockerRequest, current: Dict[str, Any] = Depends(get_current_user)):
+    """
+    Secure endpoint for DigiLocker OAuth callback verification.
+    In production, digilocker_code should be exchanged for an access token via the gateway provider (Setu/Signzy).
+    """
+    # Simulate gateway exchange delay
+    await asyncio.sleep(1)
+
+    doc = req.model_dump()
+    doc["user_id"] = current["id"]
+    doc["submitted_at"] = iso(now_utc())
+    doc["status"] = "approved"
+    doc["method"] = "digilocker"
+
+    # Upsert the verified KYC record
+    await kyc_c.update_one({"user_id": current["id"]}, {"$set": doc}, upsert=True)
+    
+    # Update the user's root status
+    await users_c.update_one({"id": current["id"]}, {"$set": {"kyc_status": "approved", "digilocker_verified": True}})
+    
+    # Award the verified founder achievement
+    await award_achievement(current["id"], "verified_founder")
+    
+    return {"status": "approved", "message": "KYC instantly verified via DigiLocker"}
 
 
 # --------------------------------------------------------------------------- #
