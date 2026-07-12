@@ -65,7 +65,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "EXPO_PUBLIC_BACKEND_URL": "https://ideacon-backend-979485405721.us-central1.run.app",
+      "EXPO_PUBLIC_BACKEND_URL": "https://ideacon-api.onrender.com",
       "router": {},
       "eas": {
         "projectId": "d8e6b100-6bfc-4793-a397-b03057931c79"

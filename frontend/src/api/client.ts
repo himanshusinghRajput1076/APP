@@ -6,7 +6,7 @@ import { storage } from "@/src/utils/storage";
 import Constants from "expo-constants";
 
 // For android emulator we need 10.0.2.2 usually, but for now we'll just parse the config.
-const BASE_URL = Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || process.env.EXPO_PUBLIC_BACKEND_URL || "http://10.0.2.2:8000";
+const BASE_URL = process.env.EXPO_PUBLIC_BACKEND_URL || Constants.expoConfig?.extra?.EXPO_PUBLIC_BACKEND_URL || "http://10.0.2.2:8000";
 
 if (!BASE_URL) {
   console.warn("EXPO_PUBLIC_BACKEND_URL missing");
