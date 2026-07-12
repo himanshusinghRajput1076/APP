@@ -22,4 +22,15 @@ config.cacheStores = [
 // Reduce the number of workers to decrease resource usage
 config.maxWorkers = 2;
 
+// Custom resolver to redirect react-native-google-mobile-ads to web shim on Web platform
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (platform === "web" && moduleName === "react-native-google-mobile-ads") {
+    return {
+      filePath: path.resolve(__dirname, "src/shims/mobile-ads.web.js"),
+      type: "sourceFile",
+    };
+  }
+  return context.resolveRequest(context, moduleName, platform);
+};
+
 module.exports = config;
