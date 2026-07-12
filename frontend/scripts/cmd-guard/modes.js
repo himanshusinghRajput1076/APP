@@ -40,8 +40,9 @@ function runPreinstall() {
 
   let pkg;
   try {
+    // eslint-disable-next-line no-undef
     pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "package.json"), "utf8"));
-  } catch (e) {
+  } catch (_e) {
     process.exit(0);
   }
 

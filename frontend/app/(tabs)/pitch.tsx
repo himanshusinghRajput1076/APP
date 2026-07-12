@@ -163,6 +163,7 @@ const PitchCard = memo(({ pitch, onLike }: { pitch: any; onLike: () => void }) =
     </Card>
   );
 });
+PitchCard.displayName = 'PitchCard';
 
 function NewPitchModal({ visible, onClose, onCreated }: { visible: boolean; onClose: () => void; onCreated: () => void }) {
   const { theme } = useTheme();

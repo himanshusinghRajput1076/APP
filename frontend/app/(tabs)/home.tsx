@@ -309,6 +309,7 @@ const QuickAction = memo(({ icon, label, onPress, color, testID }: { icon: any; 
     </TouchableOpacity>
   );
 });
+QuickAction.displayName = 'QuickAction';
 
 const StatCell = memo(({ label, value, color, width }: { label: string; value: string; color: string; width: any }) => {
   const { theme } = useTheme();
@@ -327,3 +328,4 @@ const StatCell = memo(({ label, value, color, width }: { label: string; value: s
     </View>
   );
 });
+StatCell.displayName = 'StatCell';
