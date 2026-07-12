@@ -1,8 +1,8 @@
 /**
  * Home dashboard — role-specific overview with time greetings, achievements, testimonials.
  */
-import React, { useEffect, useState, useCallback } from "react";
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, Share, Dimensions } from "react-native";
+import React, { useEffect, useState, useCallback, memo } from "react";
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image, Share, Dimensions, FlatList } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTheme } from "@/src/theme/ThemeProvider";
@@ -225,11 +225,15 @@ export default function Home() {
             {loading ? (
               <Skeleton height={80} />
             ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}>
-                {achievements.map((a) => (
-                  <AchievementBadge key={a.key} item={a} />
-                ))}
-              </ScrollView>
+              <FlatList 
+                data={achievements}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyExtractor={(item) => item.key}
+                contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}
+                initialNumToRender={5}
+                renderItem={({item}) => <AchievementBadge item={item} />}
+              />
             )}
           </View>
 
@@ -242,9 +246,15 @@ export default function Home() {
           {/* Testimonials */}
           <View style={{ marginTop: spacing.lg }}>
             <Text style={{ ...typography.caption, color: theme.textMuted, marginBottom: 12 }}>SUCCESS STORIES</Text>
-            <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={false}>
-              {TESTIMONIALS.map((t, i) => (
-                <View key={i} style={{ width: width - spacing.lg * 2 - 8, marginRight: 12 }}>
+            <FlatList 
+              data={TESTIMONIALS}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              keyExtractor={(_, i) => String(i)}
+              initialNumToRender={2}
+              renderItem={({item: t}) => (
+                <View style={{ width: width - spacing.lg * 2 - 8, marginRight: 12 }}>
                   <Card style={{ padding: 18 }}>
                     <Ionicons name="chatbox-ellipses" size={20} color={theme.primary} />
                     <Text style={{ color: theme.text, fontSize: 15, marginTop: 8, lineHeight: 22, fontStyle: "italic" }}>
@@ -256,8 +266,8 @@ export default function Home() {
                     </View>
                   </Card>
                 </View>
-              ))}
-            </ScrollView>
+              )}
+            />
           </View>
 
           <View style={{ marginTop: spacing.lg }}>
@@ -276,7 +286,7 @@ export default function Home() {
   );
 }
 
-function QuickAction({ icon, label, onPress, color, testID }: { icon: any; label: string; onPress: () => void; color: string; testID?: string }) {
+const QuickAction = memo(({ icon, label, onPress, color, testID }: { icon: any; label: string; onPress: () => void; color: string; testID?: string }) => {
   const { theme } = useTheme();
   return (
     <TouchableOpacity
@@ -298,9 +308,9 @@ function QuickAction({ icon, label, onPress, color, testID }: { icon: any; label
       <Text style={{ color: theme.text, fontWeight: "700", fontSize: 12, letterSpacing: 0.3 }}>{label}</Text>
     </TouchableOpacity>
   );
-}
+});
 
-function StatCell({ label, value, color, width }: { label: string; value: string; color: string; width: any }) {
+const StatCell = memo(({ label, value, color, width }: { label: string; value: string; color: string; width: any }) => {
   const { theme } = useTheme();
   return (
     <View style={{
@@ -316,4 +326,4 @@ function StatCell({ label, value, color, width }: { label: string; value: string
       <Text style={{ color, fontSize: 34, fontWeight: "900" }}>{value}</Text>
     </View>
   );
-}
+});

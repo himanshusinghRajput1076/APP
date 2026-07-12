@@ -22,5 +22,13 @@
         "gradleCommand": ":app:assembleDebug"
       }
     }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "serviceAccountKeyPath": "./google-service-account.json",
+        "track": "internal"
+      }
+    }
   }
 }

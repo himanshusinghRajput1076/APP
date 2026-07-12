@@ -12,9 +12,13 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any, Literal
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, WebSocket, WebSocketDisconnect, Query, Request
 from fastapi.security import OAuth2PasswordBearer
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 from motor.motor_asyncio import AsyncIOMotorClient
 from sqlalchemy import text as sql_text
 from db import sqlite as sqlite_db
@@ -22,6 +26,7 @@ from pydantic import BaseModel, Field, EmailStr
 from dotenv import load_dotenv
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+import google.generativeai as genai
 
 # --------------------------------------------------------------------------- #
 # Config
@@ -39,6 +44,10 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Admin@Ideacon2026")
 RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "rzp_test_placeholder")
 RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "placeholder_secret")
 PAYMENT_MODE = os.environ.get("PAYMENT_MODE", "mock")  # mock | live
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
+if GEMINI_API_KEY:
+    genai.configure(api_key=GEMINI_API_KEY)
 
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
@@ -609,6 +618,9 @@ async def lifespan(app: FastAPI):
         await users_c.create_index("email", unique=True)
         await users_c.create_index("id", unique=True)
         await messages_c.create_index([("chat_id", 1), ("created_at", 1)])
+        await pitches_c.create_index([("ignites", -1), ("created_at", -1)])
+        await pitches_c.create_index("id", unique=True)
+        await support_c.create_index("created_at", -1)
     await seed_admin()
     await get_plans_dict()
     await get_settings()
@@ -620,7 +632,29 @@ async def lifespan(app: FastAPI):
 # --------------------------------------------------------------------------- #
 # App
 # --------------------------------------------------------------------------- #
+def get_real_ip(request: Request):
+    return request.headers.get("CF-Connecting-IP") or request.headers.get("X-Forwarded-For") or request.client.host if request.client else "127.0.0.1"
+
+limiter = Limiter(key_func=get_real_ip)
+
 app = FastAPI(title="IDEACON API", version="1.0.0", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        # Hide server info
+        if "Server" in response.headers:
+            del response.headers["Server"]
+        return response
+
+app.add_middleware(SecurityHeadersMiddleware)
+
 api = APIRouter(prefix="/api")
 
 app.add_middleware(
@@ -635,7 +669,7 @@ app.add_middleware(
         "https://plan-b-ee2d2.web.app",
         "https://plan-b-ee2d2.firebaseapp.com",
     ],
-    allow_origin_regex=r"https://.*\.serveousercontent\.com|https://.*\.lhr\.life",  # tunnel origins
+    allow_origin_regex=r"https://.*\.trycloudflare\.com",  # Cloudflare secure tunnels
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -820,7 +854,8 @@ async def award_achievement(user_id: str, achievement_key: str) -> bool:
     return getattr(r, "modified_count", 1) > 0
 
 @api.post("/auth/signup", response_model=TokenResponse)
-async def signup(req: SignupRequest):
+@limiter.limit("5/minute")
+async def signup(request: Request, req: SignupRequest):
     email = req.email.lower()
     if await users_c.find_one({"email": email}):
         raise HTTPException(400, "Email already registered")
@@ -857,7 +892,8 @@ async def signup(req: SignupRequest):
     return {"access_token": token, "token_type": "bearer", "user": sanitize_user(user_doc)}
 
 @api.post("/auth/login", response_model=TokenResponse)
-async def login(req: LoginRequest):
+@limiter.limit("5/minute")
+async def login(request: Request, req: LoginRequest):
     user = await users_c.find_one({"email": req.email.lower()})
     if not user:
         raise HTTPException(401, "Invalid credentials")
@@ -1003,6 +1039,29 @@ async def discover(
 # --------------------------------------------------------------------------- #
 # Idea Pitches
 # --------------------------------------------------------------------------- #
+@api.post("/pitch/analyze/{pitch_id}")
+async def analyze_pitch(pitch_id: str, current: Dict[str, Any] = Depends(get_current_user)):
+    if not GEMINI_API_KEY:
+        raise HTTPException(500, "Gemini AI is not configured. Add GEMINI_API_KEY to backend env.")
+    
+    pitch = await pitches_c.find_one({"id": pitch_id})
+    if not pitch:
+        raise HTTPException(404, "Pitch not found")
+        
+    prompt = f"Act as an expert startup investor. Analyze this pitch and provide Strengths, Weaknesses, and a Market Fit Score (0-100). Return only valid JSON in this format: {{\"strengths\": [\"str1\"], \"weaknesses\": [\"wk1\"], \"score\": 85, \"summary\": \"\"}}.\n\nTitle: {pitch.get('title')}\nDescription: {pitch.get('description')}\nSector: {pitch.get('sector')}"
+    
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        response = await asyncio.to_thread(model.generate_content, prompt)
+        
+        raw_text = response.text.replace("```json", "").replace("```", "").strip()
+        analysis = json.loads(raw_text)
+        
+        await pitches_c.update_one({"id": pitch_id}, {"$set": {"ai_analysis": analysis}})
+        return {"status": "success", "analysis": analysis}
+    except Exception as e:
+        raise HTTPException(500, f"AI Analysis failed: {str(e)}")
+
 @api.post("/pitch")
 async def create_pitch(req: PitchRequest, current: Dict[str, Any] = Depends(get_current_user)):
     if current["role"] not in [ROLE_STUDENT, ROLE_GROWING]:
