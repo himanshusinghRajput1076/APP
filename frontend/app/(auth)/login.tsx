@@ -44,7 +44,7 @@ export default function Login() {
 
         <ScrollView contentContainerStyle={{ padding: spacing.lg }} keyboardShouldPersistTaps="handled">
           <Text style={{ color: theme.primary, fontSize: 10, letterSpacing: 3, fontWeight: "700" }}>WELCOME BACK</Text>
-          <Text style={{ ...typography.h1, color: theme.text, marginTop: 6 }}>Sign in to IDEACON</Text>
+          <Text style={{ ...typography.h1, color: theme.text, marginTop: 6 }}>Sign in to IDEACON-ORIGENIX</Text>
           <Text style={{ ...typography.body, color: theme.textMuted, marginTop: 6 }}>
             Continue building your startup journey.
           </Text>
@@ -60,7 +60,7 @@ export default function Login() {
             <Btn testID="login-submit-btn" title="Sign In" onPress={submit} loading={loading} />
             <TouchableOpacity onPress={() => router.replace("/(auth)/role")} testID="go-signup-btn">
               <Text style={{ color: theme.textMuted, textAlign: "center" }}>
-                New to IDEACON? <Text style={{ color: theme.primary, fontWeight: "700" }}>Create Account</Text>
+                New to IDEACON-ORIGENIX? <Text style={{ color: theme.primary, fontWeight: "700" }}>Create Account</Text>
               </Text>
             </TouchableOpacity>
           </View>

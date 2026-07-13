@@ -78,7 +78,7 @@ export default function ProfileDetail() {
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
               <Ionicons name="lock-closed" size={14} color={theme.warning} />
               <Text style={{ color: theme.textMuted, fontSize: 12, flex: 1 }}>
-                Contact details (email/phone) are hidden. Please connect via IDEACON chat.
+                Contact details (email/phone) are hidden. Please connect via IDEACON-ORIGENIX chat.
               </Text>
             </View>
           </Card>

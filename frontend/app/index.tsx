@@ -108,7 +108,7 @@ export default function Splash() {
 
       {/* Wordmark */}
       <Animated.View style={[letterStyle, { marginTop: 24, alignItems: "center" }]}>
-        <Text style={[styles.title, { color: theme.text }]}>{settings?.company_name || "IDEACON"}</Text>
+        <Text style={[styles.title, { color: theme.text }]}>{settings?.company_name || "IDEACON-ORIGENIX"}</Text>
         <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>
           <View style={[styles.tickBar, { backgroundColor: theme.primary }]} />
           <Text style={[styles.tagline, { color: theme.textMuted }]}>THE STARTUP ECOSYSTEM</Text>

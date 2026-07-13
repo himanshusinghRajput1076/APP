@@ -39,7 +39,7 @@ DB_NAME = os.environ.get("DB_NAME", "ideacon")
 JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "change-me-in-prod")
 JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "10080"))
-ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@ideacon.in")
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@ideacon-origenix.in")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "Admin@Ideacon2026")
 RAZORPAY_KEY_ID = os.environ.get("RAZORPAY_KEY_ID", "rzp_test_placeholder")
 RAZORPAY_KEY_SECRET = os.environ.get("RAZORPAY_KEY_SECRET", "placeholder_secret")
@@ -555,15 +555,15 @@ else:
 
 DEFAULT_SETTINGS = {
     "id": "global",
-    "company_name": "IDEACON",
+    "company_name": "IDEACON-ORIGENIX",
     "company_logo": "",  # Empty logo means default UI branding
     "bank_details": {
-        "account_name": "IDEACON Technologies Pvt Ltd",
+        "account_name": "IDEACON-ORIGENIX Technologies Pvt Ltd",
         "bank_name": "ICICI Bank",
         "account_number": "123456789012",
         "ifsc_code": "ICIC0001234",
     },
-    "upi_id": "ideacon@icici",
+    "upi_id": "ideaconorigenix@icici",
     "qr_code_url": "",  # Empty means auto-generate QR from UPI ID
     "seedforge_enabled": True,
     "pabbly_enabled": True,
@@ -637,7 +637,7 @@ def get_real_ip(request: Request):
 
 limiter = Limiter(key_func=get_real_ip)
 
-app = FastAPI(title="IDEACON API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="IDEACON-ORIGENIX API", version="1.0.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
@@ -832,7 +832,7 @@ async def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
 # --------------------------------------------------------------------------- #
 @api.get("/")
 async def root():
-    return {"app": "IDEACON", "version": "1.0.0", "status": "ok"}
+    return {"app": "IDEACON-ORIGENIX", "version": "1.0.0", "status": "ok"}
 
 def generate_referral_code(user_id: str) -> str:
     # 8-char code based on user id, alphanumeric uppercase

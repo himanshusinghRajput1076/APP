@@ -48,7 +48,7 @@ export default function IdCard() {
         <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}>
           <Text style={{ ...typography.h1, color: theme.text }}>Your Digital ID</Text>
           <Text style={{ color: theme.textMuted, marginTop: 6 }}>
-            Government-grade credentials on the IDEACON ecosystem.
+            Government-grade credentials on the IDEACON-ORIGENIX ecosystem.
           </Text>
 
           {/* THE CARD */}
@@ -89,7 +89,7 @@ export default function IdCard() {
                     <View style={{ width: 20, height: 20, backgroundColor: theme.primary, alignItems: "center", justifyContent: "center" }}>
                       <Text style={{ color: "#050505", fontWeight: "900", fontSize: 12 }}>I</Text>
                     </View>
-                    <Text style={{ color: theme.text, fontWeight: "900", letterSpacing: 3, fontSize: 13 }}>IDEACON</Text>
+                    <Text style={{ color: theme.text, fontWeight: "900", letterSpacing: 3, fontSize: 13 }}>IDEACON-ORIGENIX</Text>
                   </View>
                   <Text style={{ color: theme.textFaint, fontSize: 8, letterSpacing: 2, marginTop: 4 }}>MEMBER · {isPro ? "PRO" : "STANDARD"}</Text>
                 </View>
@@ -124,7 +124,7 @@ export default function IdCard() {
                   </View>
                 )}
                 <View style={{ padding: 4, backgroundColor: "#FFFFFF", borderRadius: 3 }}>
-                  <QRCode value={`ideacon:${card.member_id}`} size={64} backgroundColor="#FFFFFF" color="#050505" />
+                  <QRCode value={`ideacon-origenix:${card.member_id}`} size={64} backgroundColor="#FFFFFF" color="#050505" />
                 </View>
               </View>
             </View>

@@ -195,7 +195,7 @@ export default function Subscription() {
                     {settings.qr_code_url ? (
                       <Image source={{ uri: settings.qr_code_url }} style={{ width: 150, height: 150, borderRadius: 8 }} resizeMode="contain" />
                     ) : (
-                      <QRCode value={`upi://pay?pa=${settings.upi_id || "ideacon@icici"}&pn=${settings.company_name || "IDEACON"}&am=${selected?.amount_rupees}&cu=INR`} size={130} backgroundColor="#FFFFFF" color="#050505" />
+                      <QRCode value={`upi://pay?pa=${settings.upi_id || "ideacon@icici"}&pn=${settings.company_name || "IDEACON-ORIGENIX"}&am=${selected?.amount_rupees}&cu=INR`} size={130} backgroundColor="#FFFFFF" color="#050505" />
                     )}
                     <Text style={{ color: theme.textMuted, fontSize: 12, marginTop: 10 }}>UPI ID: {settings.upi_id || "ideacon@icici"}</Text>
                   </Card>

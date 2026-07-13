@@ -50,7 +50,7 @@ export default function Welcome() {
                 <Text style={{ color: "#050505", fontWeight: "900" }}>I</Text>
               </View>
             )}
-            <Text style={{ color: theme.text, fontWeight: "900", letterSpacing: 3 }}>{settings?.company_name || "IDEACON"}</Text>
+            <Text style={{ color: theme.text, fontWeight: "900", letterSpacing: 3 }}>{settings?.company_name || "IDEACON-ORIGENIX"}</Text>
           </View>
           <TouchableOpacity onPress={toggle} testID="theme-toggle-btn" style={{ width: 38, height: 38, borderWidth: 1, borderColor: theme.border, backgroundColor: `${theme.bg}88`, alignItems: "center", justifyContent: "center" }}>
             <Ionicons name={mode === "dark" ? "sunny-outline" : "moon-outline"} size={18} color={theme.text} />

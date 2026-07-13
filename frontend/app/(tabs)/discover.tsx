@@ -59,7 +59,7 @@ export default function Discover() {
           <View style={{ flexDirection: "row", gap: 6, marginTop: 12, alignItems: "center" }}>
             <Ionicons name="lock-closed" size={11} color={theme.textFaint} />
             <Text style={{ color: theme.textFaint, fontSize: 11 }}>
-              Contact info hidden. Chat via IDEACON. Slots: {limit}
+              Contact info hidden. Chat via IDEACON-ORIGENIX. Slots: {limit}
             </Text>
           </View>
         </View>

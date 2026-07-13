@@ -89,3 +89,8 @@ frontend/android/app/debug.keystore
 frontend/ios/.xcode.env
 frontend/ios/Pods/
 frontend/ios/Pods/**
+
+# Cloudflare Tunnels & Local Logs
+cloudflared.exe
+*.log
+live_url.txt

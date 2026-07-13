@@ -13,7 +13,7 @@ BASE_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL", "http://localhost:8000").rs
 API = f"{BASE_URL}/api"
 WS_BASE = BASE_URL.replace("https://", "wss://").replace("http://", "ws://") + "/api/ws"
 
-ADMIN_EMAIL = "admin@ideacon.in"
+ADMIN_EMAIL = "admin@ideacon-origenix.in"
 ADMIN_PASSWORD = "Admin@Ideacon2026"
 
 RUN_ID = uuid.uuid4().hex[:6]
@@ -62,7 +62,7 @@ def _auth(tok):
 def test_health():
     r = requests.get(f"{API}/", timeout=10)
     assert r.status_code == 200
-    assert r.json()["app"] == "IDEACON"
+    assert r.json()["app"] == "IDEACON-ORIGENIX"
 
 
 # ---------- Auth ----------

@@ -82,7 +82,7 @@ export default function Home() {
     if (!referral?.code) return;
     try {
       await Share.share({
-        message: `Join me on IDEACON — India's futuristic startup ecosystem. Use my referral code ${referral.code} to get ₹100 credits on your first subscription. Download the app now!`,
+        message: `Join me on IDEACON-ORIGENIX — India's futuristic startup ecosystem. Use my referral code ${referral.code} to get ₹100 credits on your first subscription. Download the app now!`,
       });
     } catch { /* ignore */ }
   };
@@ -275,7 +275,7 @@ export default function Home() {
               <Text style={{ ...typography.caption, color: theme.textMuted }}>DPIIT REGISTERED VISION</Text>
               <Text style={{ color: theme.text, fontSize: 18, fontWeight: "800", marginTop: 4 }}>Built for Startup India.</Text>
               <Text style={{ color: theme.textMuted, marginTop: 6 }}>
-                IDEACON connects founders, capital, and mentorship on one futuristic platform — powered by DPIIT vision.
+                IDEACON-ORIGENIX connects founders, capital, and mentorship on one futuristic platform — powered by DPIIT vision.
               </Text>
             </Card>
           </View>

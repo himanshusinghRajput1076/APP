@@ -83,7 +83,7 @@ export default function Support() {
             <Card style={{ marginTop: 16 }}>
               <Text style={{ ...typography.caption, color: theme.textMuted }}>OUR CONTACT</Text>
               <View style={{ marginTop: 10, gap: 8 }}>
-                <ContactRow icon="mail" label="support@ideacon.in" />
+                <ContactRow icon="mail" label="support@ideacon-origenix.in" />
                 <ContactRow icon="call" label="+91 90000 00000" />
                 <ContactRow icon="location" label="Made in India · DPIIT Vision" />
               </View>
